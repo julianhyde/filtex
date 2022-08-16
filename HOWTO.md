@@ -1,12 +1,12 @@
-# Empty HOWTO
+# Filtex HOWTO
 
-Here's some miscellaneous documentation about using and developing Empty.
+Here's some miscellaneous documentation about using and developing Filtex.
 
 # Release
 
 Make sure that `./mvnw clean install site` runs on JDK 8, 11 and 17
 on Linux, macOS and Windows.
-Also check [Travis CI](https://travis-ci.org/julianhyde/empty).
+Also check [Travis CI](https://travis-ci.org/julianhyde/filtex).
 
 Update the [release history](HISTORY.md),
 the version number at the bottom of [README](README.md),
@@ -25,6 +25,6 @@ read -s GPG_PASSPHRASE
 Then go to [Sonatype](https://oss.sonatype.org/#stagingRepositories),
 log in, close the repository, and release.
 
-Make sure that the [site](http://www.hydromatic.net/empty/) has been updated.
+Make sure that the [site](http://www.hydromatic.net/filtex/) has been updated.
 
 [Announce the release](https://twitter.com/julianhyde/status/622842100736856064).

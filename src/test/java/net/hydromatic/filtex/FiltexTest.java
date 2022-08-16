@@ -14,10 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package net.hydromatic.filtex;
+
+import org.junit.jupiter.api.Test;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
- * Empty.
+ * Tests {@link Filtex}.
  */
-package net.hydromatic.empty;
+public class FiltexTest {
+  @Test void testMain() {
+    Filtex.main();
+    assertThat(1, is(1));
+  }
+}
 
-// End package-info.java
+// End FiltexTest.java

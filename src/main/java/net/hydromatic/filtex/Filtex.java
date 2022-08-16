@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.hydromatic.empty;
+package net.hydromatic.filtex;
 
 /**
- * Empty main class.
+ * Filtex main class.
  */
-public class Empty {
-  private Empty() {
+public class Filtex {
+  private Filtex() {
   }
 
   public static void main() {
@@ -28,4 +28,4 @@ public class Empty {
   }
 }
 
-// End Empty.java
+// End Filtex.java

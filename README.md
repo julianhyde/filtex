@@ -18,23 +18,23 @@ language governing permissions and limitations under the
 License.
 {% endcomment %}
 -->
-[![Build Status](https://github.com/julianhyde/empty/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/julianhyde/empty/actions?query=branch%3Amain)
+[![Build Status](https://github.com/julianhyde/filtex/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/julianhyde/filtex/actions?query=branch%3Amain)
 
-# Empty
+# Filtex
 
-Empty is a template for projects that use Java/Maven.
+Filtex is a template for projects that use Java/Maven.
 
-## Get Empty
+## Get Filtex
 
 ### From Maven
 
-Get Empty from
-<a href="https://search.maven.org/#search%7Cga%7C1%7Ca%3Aempty">Maven central</a>:
+Get Filtex from
+<a href="https://search.maven.org/#search%7Cga%7C1%7Ca%3Afiltex">Maven central</a>:
 
 ```xml
 <dependency>
   <groupId>net.hydromatic</groupId>
-  <artifactId>empty</artifactId>
+  <artifactId>filtex</artifactId>
   <version>0.1</version>
 </dependency>
 ```
@@ -44,8 +44,8 @@ Get Empty from
 You need Java (8 or higher) and Git.
 
 ```bash
-$ git clone git://github.com/julianhyde/empty.git
-$ cd empty
+$ git clone git://github.com/julianhyde/filtex.git
+$ cd filtex
 $ ./mvnw compile
 ```
 
@@ -63,13 +63,13 @@ On Java versions less than 11, you should add parameters
 * License: <a href="LICENSE">Apache Software License, Version 2.0</a>
 * Author: Julian Hyde
 * Blog: https://julianhyde.blogspot.com
-* Project page: http://www.hydromatic.net/empty
-* API: http://www.hydromatic.net/empty/apidocs
-* Source code: https://github.com/julianhyde/empty
+* Project page: http://www.hydromatic.net/filtex
+* API: http://www.hydromatic.net/filtex/apidocs
+* Source code: https://github.com/julianhyde/filtex
 * Developers list:
   <a href="mailto:dev@calcite.apache.org">dev at calcite.apache.org</a>
   (<a href="https://mail-archives.apache.org/mod_mbox/calcite-dev/">archive</a>,
   <a href="mailto:dev-subscribe@calcite.apache.org">subscribe</a>)
-* Issues: https://github.com/julianhyde/empty/issues
+* Issues: https://github.com/julianhyde/filtex/issues
 * <a href="HISTORY.md">Release notes and history</a>
 * <a href="HOWTO.md">HOWTO</a>

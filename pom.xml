@@ -7,14 +7,14 @@
     <version>0.1</version>
   </parent>
 
-  <artifactId>empty</artifactId>
+  <artifactId>filtex</artifactId>
   <version>0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <!-- More project information. -->
-  <name>Empty</name>
-  <description>Empty template for Java/Maven projects</description>
-  <url>https://github.com/julianhyde/empty</url>
+  <name>Filtex</name>
+  <description>Filtex template for Java/Maven projects</description>
+  <url>https://github.com/julianhyde/filtex</url>
   <inceptionYear>2022</inceptionYear>
   <organization>
     <name>Julian Hyde</name>
@@ -80,21 +80,21 @@
   <!-- Environment settings. -->
   <distributionManagement>
     <site>
-      <id>empty.website</id>
-      <name>Empty Website</name>
-      <url>file:/home/jhyde/web/empty</url>
+      <id>filtex.website</id>
+      <name>Filtex Website</name>
+      <url>file:/home/jhyde/web/filtex</url>
     </site>
   </distributionManagement>
 
   <issueManagement>
     <system>github</system>
-    <url>https://github.com/julianhyde/empty/issues</url>
+    <url>https://github.com/julianhyde/filtex/issues</url>
   </issueManagement>
 
   <scm>
-    <connection>scm:git:git://github.com/julianhyde/empty.git</connection>
-    <developerConnection>scm:git:git@github.com:julianhyde/empty.git</developerConnection>
-    <url>https://github.com/julianhyde/empty/tree/main</url>
+    <connection>scm:git:git://github.com/julianhyde/filtex.git</connection>
+    <developerConnection>scm:git:git@github.com:julianhyde/filtex.git</developerConnection>
+    <url>https://github.com/julianhyde/filtex/tree/main</url>
     <tag>HEAD</tag>
   </scm>
 
