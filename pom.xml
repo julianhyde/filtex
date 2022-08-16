@@ -62,6 +62,7 @@
     <!-- We support checkstyle 9.3 and higher; 10.0 requires JDK 11 or higher. -->
     <checkstyle.version>10.3.2</checkstyle.version>
     <git-commit-id-plugin.version>4.9.10</git-commit-id-plugin.version>
+    <graalvm.version>22.0.0.2</graalvm.version>
     <!-- We support Guava versions 19.0 and higher. -->
     <guava.version>31.1-jre</guava.version>
     <hamcrest.version>2.2</hamcrest.version>
@@ -110,6 +111,12 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>${guava.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.graalvm.js</groupId>
+      <artifactId>js</artifactId>
+      <version>${graalvm.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.hamcrest</groupId>
@@ -179,8 +186,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>${maven-compiler-plugin.version}</version>
         <configuration>
-          <source>8</source>
-          <target>8</target>
+          <source>9</source>
+          <target>9</target>
         </configuration>
       </plugin>
       <plugin>
