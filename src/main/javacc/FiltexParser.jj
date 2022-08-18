@@ -84,27 +84,118 @@ void debug_message1()
   LOGGER.info("{} , {}", getToken(0).image, getToken(1).image);
 }
 
-/** Parses a literal expression followed by end-of-file. */
-Literal literalEof() :
+/** Parses a numeric filter expression followed by end-of-file. */
+AstNode numericExpressionEof() :
 {
-  final Literal n;
+  final AstNode n;
 }
 {
-  n = stringLiteral() <EOF> { return n; }
+  n = numericExpression() <EOF> { return n; }
 }
 
 
-/** Parses a string literal. */
-Literal stringLiteral() :
+/** Parses a numeric expression. */
+AstNode numericExpression() :
 {
+  final AstNode n;
 }
 {
-  <QUOTED_STRING> {
-    assert token.image.charAt(0) == '"';
-    assert token.image.charAt(token.image.length() - 1) == '"';
-    String image = token.image.substring(1, token.image.length() - 1)
-        .replace("\\\\", "\\").replace("\\\"", "\"");
-    return ast.stringLiteral(pos(), image);
+  n = logicalExpression() { return n; }
+|
+  n = term() { return n; }
+}
+
+/** Parses a logical numeric expression. */
+AstNode logicalExpression() :
+{
+  final AstNode left;
+  final AstNode right;
+}
+{
+  left = term() ( <COMMA> | <OR> ) right = numericExpression() {
+    return ast.logicalExpression(left, right);
+  }
+}
+
+/** Parses a numeric term. */
+AstNode term() :
+{
+  final AstNode n;
+  final boolean is;
+  final AstNode right;
+}
+{
+  n = userAttribute() { return n; }
+|
+  is = is()
+  (
+    <NULL> { term = Op.NULL; }
+//  | term = intervalComp1()
+//  | term = intervalComp2()
+//  | term = intervalComp3()
+//  | term = intervalComp4()
+//  | <COMPARISON> { term = Op.NULL; }
+//  | <TO> { term = Op.NULL; }
+//  | <VALUE> { term = Op.NULL; }
+  )
+  ( <COMMA> | <OR> ) right = numericExpression() {
+    return ast.call(Op.COMMA, left, right);
+  }
+|
+  is = is() term = interval(is) { return term; }
+}
+
+boolean is() : {}
+{
+  <NOT> { return false; }
+| <BANG_EQ> { return false; }
+| <LT_GT> { return false; }
+| { return true; }
+}
+
+/* Special rules for defining BETWEEN ranges using comparison operators with AND/OR */
+
+/* >= 7 AND <80.44 becomes (7, 80.44) */
+AstNode intervalComp1() : {}
+{
+  { return null; }
+}
+
+AstNode interval(boolean is) : {}
+{
+  { throw new UnsupportedOperationException(); }
+/*
+open:OPEN _ left:(number) _ COMMA _ right:(number) _ close:CLOSE {
+  return {
+    type: 'between',
+      bounds: open + close,
+      low: left,
+      high: right
+  }
+} / open:OPEN _ left:(number) _ COMMA _  close:CLOSE {
+      const type = open == '(' ? '>' : '>='
+      const value = [left]
+      return {type:type, value:value}
+} /  open:OPEN _  COMMA _ right:(number) _ close:CLOSE {
+      const type = close == ')' ? '<' : '<='
+      const value = [right]
+      return {type:type, value:value}
+ } / "(" _ "-inf" _ COMMA _ right:(number) _ close:CLOSE {
+      const type = close == ')' ? '<' : '<='
+      const value = [right]
+      return {type:type, value:value}
+ } / open:OPEN _ left:(number) _ COMMA _ "inf" _ ")" {
+      const type = open == '(' ? '>' : '>='
+      const value = [left]
+      return {type:type, value:value}
+ }
+ */
+}
+
+AstNode userAttribute() : {}
+{
+  <DOUBLE_LBRACE> "_user_attributes[" "]" <DOUBLE_RBRACE> {
+    throw new UnsupportedOperationException("userAttribute");
   }
 }
 
@@ -131,6 +222,15 @@ Literal stringLiteral() :
     < QUOTED_STRING: <DOUBLE_QUOTE> ( (~["\"", "\\"]) | ("\\" "\"") | ("\\" "\\") )* <DOUBLE_QUOTE> >
     |
     < CHAR_LITERAL: ("#") <QUOTED_STRING> >
+    |
+    < NOT: "NOT" >
+|   < BANG_EQ: "!=" >
+|   < LT_GT: "<>" >
+|   < COMMA: "," >
+|   < OR: "OR" >
+|   < DOUBLE_LBRACE: "{{" >
+|   < DOUBLE_RBRACE: "}}" >
+|   < NULL: "NULL" >
 }
 
 <DEFAULT> TOKEN :

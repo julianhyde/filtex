@@ -16,15 +16,104 @@
  */
 package net.hydromatic.filtex;
 
+import net.hydromatic.filtex.ast.AstNode;
+
+import java.util.Locale;
+
 /**
- * Filtex main class.
+ * Filter expressions.
+ *
+ * <p>Based on the
+ * <a href="https://github.com/looker-open-source/components/tree/main/packages/filter-expressions">
+ * &#064;looker/filter-expressions</a> TypeScript API.
  */
 public class Filtex {
   private Filtex() {
   }
 
-  public static void main(String... args) {
-    System.out.println("Hello, world!");
+  /** Returns a valid filter expression type when given the type and field
+   * properties of a dashboard filter.
+   *
+   * <p>For example,
+   * <pre>{@code
+   * getExpressionType(true, "field_filter")
+   * }</pre>
+   *
+   * <p>returns {@link TypeFamily#NUMBER}.
+   */
+  public static TypeFamily getExpressionType(boolean numeric, String type) {
+    if (numeric && type.equals("field_filter")) {
+      return TypeFamily.NUMBER;
+    }
+    throw new UnsupportedOperationException();
+  }
+
+  /** Returns an Abstract Syntax Tree (AST) that logically represents the filter
+   * expression string passed in, as well as the filter expression type (and
+   * optional user attributes).
+   *
+   * <p>For example,
+   * <pre>{@code
+   * parseFilterExpression(TypeFamily.NUMBER, "[0,20],>30")
+   * }</pre>
+   *
+   * <p>returns
+   * <pre>{@code
+   * {
+   *    type: ',',
+   *    left: {
+   *      type: 'between',
+   *      bounds: '[]',
+   *      low: 0,
+   *      high: 20,
+   *      is: true,
+   *    },
+   *    right: {
+   *      is: true,
+   *      type: '>',
+   *      value: [30],
+   *    },
+   * }
+   * }</pre>
+   */
+  public static AstNode parseFilterExpression(TypeFamily typeFamily, String s) {
+    throw new UnsupportedOperationException();
+  }
+
+  /** Returns a localized, human-readable summary of a
+   * filter expression, given the expression's type, the expression itself,
+   * and the user attributes and field, if applicable.
+   *
+   * <p>For example,
+   * <pre>{@code
+   * summary(TypeFamily.NUMBER, "[0,20],>30", Locale.EN_US)
+   * }</pre>
+   *
+   * <p>returns {@code "is in range [0, 20] or is > 30"}. */
+  public static String summary(TypeFamily typeFamily, String s,
+      Locale locale) {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
+   * Returns an object with utility functions and values pertaining to a given
+   * expression type:
+   *
+   * <ul>
+   *   <li>toString: a function that converts an AST into an expression of the
+   *     given type
+   *   <li>subTypes: an array containing the sub-types of the expression type,
+   *     for example ">", "<", "=", "between", etc, for a number expression type
+   * </ul>
+   */
+  public static void typeToGrammar() {
+    throw new UnsupportedOperationException();
+  }
+
+  /** Converts an AST to a single item for use in a token (i.e. not advanced)
+   * filter. */
+  public static void getFilterTokenItem() {
+    throw new UnsupportedOperationException();
   }
 }
 

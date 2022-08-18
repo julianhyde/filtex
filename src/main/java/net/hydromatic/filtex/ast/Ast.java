@@ -27,12 +27,18 @@ public class Ast {
     public final Comparable value;
 
     Literal(Pos pos, Comparable value) {
-      super(pos);
+      super(pos, Op.LITERAL);
       this.value = value;
     }
 
     @Override public String toString() {
       return String.valueOf(value);
+    }
+  }
+
+  public static class Call extends AstNode {
+    public Call(Op op, AstNode left, AstNode right) {
+      super(Pos.ZERO, op);
     }
   }
 }

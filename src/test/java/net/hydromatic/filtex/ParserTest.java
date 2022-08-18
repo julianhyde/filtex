@@ -25,9 +25,16 @@ import static net.hydromatic.filtex.Matchers.isLiteral;
  * Tests the parser.
  */
 public class ParserTest {
-  @Test void testSimple() {
-    ft("\"abc\"")
+  @Test void testString() {
+    ft(TypeFamily.STRING, "\"abc\"")
         .assertParseLiteral(isLiteral("abc", "abc"));
+  }
+
+  @Test void testNumber() {
+    ft(TypeFamily.NUMBER, "20")
+        .assertParseLiteral(isLiteral(20, "20"));
+    ft(TypeFamily.NUMBER, "[0,20],>30")
+        .assertParseLiteral(isLiteral(20, "20"));
   }
 }
 

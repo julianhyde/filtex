@@ -29,15 +29,17 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Fluent tester. */
 public class Ft {
+  public final TypeFamily typeFamily;
   public final String s;
 
-  Ft(String s) {
+  Ft(TypeFamily typeFamily, String s) {
+    this.typeFamily = typeFamily;
     this.s = s;
   }
 
   /** Creates an {@code Ft}. */
-  static Ft ft(String s) {
-    return new Ft(s);
+  static Ft ft(TypeFamily typeFamily, String s) {
+    return new Ft(typeFamily, s);
   }
 
   /** Creates a parser and performs the given action. */

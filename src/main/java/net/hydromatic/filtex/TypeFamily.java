@@ -16,17 +16,12 @@
  */
 package net.hydromatic.filtex;
 
-import org.junit.jupiter.api.Test;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-
-/** Tests the {@link Filtex} facade. */
-public class FiltexTest {
-  @Test void testExpressionType() {
-    assertThat(Filtex.getExpressionType(true, "field_filter"),
-        is(TypeFamily.NUMBER));
-  }
+/**
+ * Is the filter expression for number, date, or string values?
+ */
+public enum TypeFamily {
+  NUMBER,
+  STRING;
 }
 
-// End FiltexTest.java
+// End TypeFamily.java

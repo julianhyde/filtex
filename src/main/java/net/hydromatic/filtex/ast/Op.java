@@ -18,7 +18,12 @@ package net.hydromatic.filtex.ast;
 
 /** Parse tree operator. */
 public enum Op {
-  EQ;
+  EQ(""),
+  COMMA(","),
+  LITERAL("");
+
+  Op(String s) {
+  }
 }
 
 // End Op.java

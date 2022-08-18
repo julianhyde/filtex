@@ -20,7 +20,7 @@ package net.hydromatic.filtex.ast;
 public class AstNode {
   public final Pos pos;
 
-  public AstNode(Pos pos) {
+  public AstNode(Pos pos, Op op) {
     this.pos = pos;
   }
 }

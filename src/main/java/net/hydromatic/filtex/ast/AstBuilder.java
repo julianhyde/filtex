@@ -35,6 +35,11 @@ public enum AstBuilder {
   public Ast.Literal stringLiteral(Pos pos, String value) {
     return new Ast.Literal(pos, value);
   }
+
+  /** Creates a logical expression. */
+  public AstNode logicalExpression(AstNode left, AstNode right) {
+    return new Ast.Call(Op.COMMA, left, right);
+  }
 }
 
 // End AstBuilder.java
