@@ -26,6 +26,7 @@
 
   <!-- Suppress checks on generated files. -->
   <suppress checks=".*" files=".*[/\\]target[/\\]maven-archiver[/\\]pom.properties"/>
+  <suppress checks=".*" files=".*[/\\]target[/\\]generated-sources[/\\].*"/>
   <suppress checks=".*" files="git.properties"/>
   <suppress checks=".*" files="release.properties"/>
 
