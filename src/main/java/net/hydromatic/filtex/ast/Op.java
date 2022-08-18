@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package net.hydromatic.filtex.ast;
 
-/**
- * Filter expressions.
- */
-package net.hydromatic.filtex;
+/** Parse tree operator. */
+public enum Op {
+  EQ;
+}
 
-// End package-info.java
+// End Op.java

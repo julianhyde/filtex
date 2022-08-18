@@ -14,10 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package net.hydromatic.filtex.ast;
 
-/**
- * Filter expressions.
- */
-package net.hydromatic.filtex;
+import java.math.BigDecimal;
 
-// End package-info.java
+/** AST Builder. */
+public enum AstBuilder {
+  /** The singleton instance of the AST builder.
+   * The short name is convenient for use via 'import static',
+   * but checkstyle does not approve. */
+  // CHECKSTYLE: IGNORE 1
+  ast;
+
+  /** Creates an {@code int} literal. */
+  public Ast.Literal intLiteral(Pos pos, BigDecimal value) {
+    return new Ast.Literal(pos, value);
+  }
+
+  /** Creates a string literal. */
+  public Ast.Literal stringLiteral(Pos pos, String value) {
+    return new Ast.Literal(pos, value);
+  }
+}
+
+// End AstBuilder.java

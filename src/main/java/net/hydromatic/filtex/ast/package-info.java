@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-/**
- * Filter expressions.
- */
-package net.hydromatic.filtex;
+/** Abstract syntax tree (AST). */
+package net.hydromatic.filtex.ast;
 
 // End package-info.java

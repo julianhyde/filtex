@@ -14,10 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package net.hydromatic.filtex.parse;
 
-/**
- * Filter expressions.
- */
-package net.hydromatic.filtex;
+import net.hydromatic.filtex.ast.Pos;
 
-// End package-info.java
+/** Parser for Filter Expressions. */
+public interface FiltexParser {
+  /** Returns the position of the last token returned by the parser. */
+  Pos pos();
+
+  /** Sets the current file, and sets the current line to zero. */
+  void zero(String file);
+}
+
+// End FiltexParser.java

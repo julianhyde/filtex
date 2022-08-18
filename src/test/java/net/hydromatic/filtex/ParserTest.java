@@ -14,10 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/**
- * Filter expressions.
- */
 package net.hydromatic.filtex;
 
-// End package-info.java
+import org.junit.jupiter.api.Test;
+
+import static net.hydromatic.filtex.Ft.ft;
+import static net.hydromatic.filtex.Matchers.isLiteral;
+
+/**
+ * Tests the parser.
+ */
+public class ParserTest {
+  @Test void testSimple() {
+    ft("\"abc\"")
+        .assertParseLiteral(isLiteral("abc", "abc"));
+  }
+}
+
+// End ParserTest.java

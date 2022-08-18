@@ -14,10 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package net.hydromatic.filtex.ast;
 
-/**
- * Filter expressions.
- */
-package net.hydromatic.filtex;
+/** Various sub-classes of AST nodes. */
+public class Ast {
+  private Ast() {
+  }
 
-// End package-info.java
+  /** Literal. */
+  @SuppressWarnings("rawtypes")
+  public static class Literal extends AstNode {
+    public final Comparable value;
+
+    Literal(Pos pos, Comparable value) {
+      super(pos);
+      this.value = value;
+    }
+
+    @Override public String toString() {
+      return String.valueOf(value);
+    }
+  }
+}
+
+// End Ast.java

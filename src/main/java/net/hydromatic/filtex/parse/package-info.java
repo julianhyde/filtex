@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-/**
- * Filter expressions.
- */
-package net.hydromatic.filtex;
+/** Parser. */
+package net.hydromatic.filtex.parse;
 
 // End package-info.java
