@@ -16,6 +16,8 @@
  */
 package net.hydromatic.filtex.util;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+
 import java.io.Serializable;
 import java.util.AbstractList;
 import java.util.Collections;
@@ -26,7 +28,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
 
 /**
  * Pair of objects.
@@ -96,7 +97,7 @@ public class Pair<T1, T2> implements Comparable<Pair<T1, T2>>,
     return keyHash ^ valueHash;
   }
 
-  public int compareTo(@Nonnull Pair<T1, T2> that) {
+  public int compareTo(@NonNull Pair<T1, T2> that) {
     //noinspection unchecked
     int c = compare((Comparable) this.left, (Comparable) that.left);
     if (c == 0) {
