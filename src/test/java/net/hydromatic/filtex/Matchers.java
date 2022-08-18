@@ -29,7 +29,7 @@ public abstract class Matchers {
   /** Matches a literal by value. */
   @SuppressWarnings("rawtypes")
   static Matcher<Ast.Literal> isLiteral(Comparable comparable, String s) {
-    return new TypeSafeMatcher<>() {
+    return new TypeSafeMatcher<Ast.Literal>() {
       protected boolean matchesSafely(Ast.Literal literal) {
         final String actual = literal.toString();
         return literal.value.equals(comparable)
