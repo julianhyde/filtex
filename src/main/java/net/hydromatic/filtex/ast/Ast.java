@@ -16,6 +16,14 @@
  */
 package net.hydromatic.filtex.ast;
 
+import com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.math.BigDecimal;
+import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
+
 /** Various sub-classes of AST nodes. */
 public class Ast {
   private Ast() {
@@ -23,22 +31,158 @@ public class Ast {
 
   /** Literal. */
   @SuppressWarnings("rawtypes")
-  public static class Literal extends AstNode {
+  public static class Comparison extends AstNode {
+    final boolean is;
     public final Comparable value;
 
-    Literal(Pos pos, Comparable value) {
-      super(pos, Op.LITERAL);
+    Comparison(boolean is, Op op, Comparable value) {
+      super(Pos.ZERO, op);
+      this.is = is;
       this.value = value;
     }
 
-    @Override public String toString() {
-      return String.valueOf(value);
+    @Override public void accept(Visitor visitor, @Nullable AstNode parent) {
+      visitor.visit(this, parent);
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      return writer.appendLiteral(value);
+    }
+
+    @Override public Asts.Model model() {
+      return new Asts.Model(is, op.s, value, null, null, null);
     }
   }
 
-  public static class Call extends AstNode {
-    public Call(Op op, AstNode left, AstNode right) {
+  /** Call with zero arguments, optionally negated. */
+  public static class Call0 extends AstNode {
+    final boolean is;
+
+    Call0(Op op, boolean is) {
       super(Pos.ZERO, op);
+      this.is = is;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      if (!is) {
+        writer.append("not ");
+      }
+      return writer.append(op.s);
+    }
+
+    @Override public void accept(Visitor visitor, @Nullable AstNode parent) {
+      visitor.visit(this, parent);
+    }
+
+    @Override public Asts.Model model() {
+      return new Asts.Model(is, op.s, null, null, null, null);
+    }
+  }
+
+  /** Call with one argument, optionally negated. */
+  public static class Call1 extends AstNode {
+    final boolean is;
+    final AstNode node;
+
+    Call1(Op op, boolean is, AstNode node) {
+      super(Pos.ZERO, op);
+      this.is = is;
+      this.node = node;
+    }
+
+    @Override public void accept(Visitor visitor, @Nullable AstNode parent) {
+      visitor.visit(this, parent);
+    }
+
+    @Override public Asts.Model model() {
+      return new Asts.Model(is, op.s, null, "", null, null);
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      writer.append("(");
+      if (!is) {
+        writer.append("not ");
+      }
+      writer.append(op.s);
+      return writer.append(")");
+    }
+  }
+
+  /** Call with two arguments, optionally negated. */
+  public static class Call2 extends AstNode {
+    public final AstNode left;
+    public final AstNode right;
+
+    Call2(Op op, AstNode left, AstNode right) {
+      super(Pos.ZERO, op);
+      this.left = left;
+      this.right = right;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      return writer.infix(left, op, right);
+    }
+
+    @Override public void accept(Visitor visitor, AstNode parent) {
+      visitor.visit(this, parent);
+    }
+
+    @Override public Asts.Model model() {
+      return new Asts.Model(true, op.s,
+          ImmutableList.of(left.toString(), right.toString()),
+          null, null, null);
+    }
+  }
+
+  /** Range. */
+  public static class Range extends AstNode {
+    public final boolean is;
+    public final BigDecimal left;
+    public final BigDecimal right;
+
+    public Range(Op op, boolean is, BigDecimal left, BigDecimal right) {
+      super(Pos.ZERO, op);
+      this.is = is;
+      this.left = requireNonNull(left);
+      this.right = requireNonNull(right);
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      writer.append(op.left);
+      if (left != null) {
+        writer.appendLiteral(left);
+      }
+      writer.append(",");
+      if (right != null) {
+        writer.appendLiteral(right);
+      }
+      writer.append(op.right);
+      return writer;
+    }
+
+    @Override public void accept(Visitor visitor, AstNode parent) {
+      visitor.visit(this, parent);
+    }
+
+    @Override public Asts.Model model() {
+      final String type;
+      switch (op) {
+      case ABSENT_CLOSED:
+      case ABSENT_OPEN:
+      case CLOSED_ABSENT:
+      case OPEN_ABSENT:
+        type = op.s;
+        break;
+      default:
+        type = "between";
+      }
+      final Object value =
+          left != null && right != null ? ImmutableList.of(left, right)
+              : left != null ? left
+                  : right;
+      return new Asts.Model(is, type, value, op.s,
+          left == null ? "" : left.toString(),
+          right == null ? "" : right.toString());
     }
   }
 }

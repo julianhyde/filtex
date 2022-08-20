@@ -18,11 +18,49 @@ package net.hydromatic.filtex.ast;
 
 /** Parse tree operator. */
 public enum Op {
-  EQ(""),
+  EQ("="),
+  GE(">="),
+  GT(">"),
+  LE("<="),
+  LT("<"),
   COMMA(","),
-  LITERAL("");
+  LITERAL(""),
+  NULL("null"),
+  OPEN_OPEN("()", "(", ")"),
+  OPEN_CLOSED("(]", "(", "]"),
+  OPEN_ABSENT(">", "(", "inf)"),
+  CLOSED_OPEN("[)", "[", ")"),
+  CLOSED_CLOSED("[]", "[", "]"),
+  CLOSED_ABSENT(">=", "[", "inf)"),
+  ABSENT_OPEN("<", "(-inf", ")"),
+  ABSENT_CLOSED("<=", "(-inf", "]");
+
+  public final String s;
+  public final String left;
+  public final String right;
+
+  Op(String s, String left, String right) {
+    this.s = s;
+    this.left = left;
+    this.right = right;
+  }
 
   Op(String s) {
+    this.s = s;
+    this.left = null;
+    this.right = null;
+  }
+
+  /** Returns whether this operation is a range that is closed below;
+   * for example "[0, 10)" contains its lower bound, "0". */
+  public boolean containsLowerBound() {
+    return s.startsWith("[");
+  }
+
+  /** Returns whether this operation is a range that is closed above;
+   * for example "[0, 10)" does not contain its lower bound, "10". */
+  public boolean containsUpperBound() {
+    return s.endsWith("]");
   }
 }
 

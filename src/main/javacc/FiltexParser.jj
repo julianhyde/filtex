@@ -19,7 +19,7 @@
 
 options {
   STATIC = false;
-  IGNORE_CASE = false;
+  IGNORE_CASE = true;
   UNICODE_INPUT = true;
 }
 
@@ -30,10 +30,13 @@ package net.hydromatic.filtex.parse;
 import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.Ast.*;
 import net.hydromatic.filtex.ast.AstNode;
+import net.hydromatic.filtex.ast.Bound;
 import net.hydromatic.filtex.ast.Op;
 import net.hydromatic.filtex.ast.Pos;
 
 import com.google.common.collect.ImmutableList;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,8 +52,7 @@ import static net.hydromatic.filtex.ast.AstBuilder.ast;
 /**
  * Parser for filter expressions, generated from FiltexParser.jj by JavaCC.
  */
-public class FiltexParserImpl implements FiltexParser
-{
+public class FiltexParserImpl implements FiltexParser {
   private static final Logger LOGGER =
       LoggerFactory.getLogger("net.hydromatic.filtex.parse");
 
@@ -85,66 +87,60 @@ void debug_message1()
 }
 
 /** Parses a numeric filter expression followed by end-of-file. */
-AstNode numericExpressionEof() :
-{
-  final AstNode n;
+AstNode numericExpressionEof() : {
+  final AstNode node;
 }
 {
-  n = numericExpression() <EOF> { return n; }
-}
-
-
-/** Parses a numeric expression. */
-AstNode numericExpression() :
-{
-  final AstNode n;
-}
-{
-  n = logicalExpression() { return n; }
-|
-  n = term() { return n; }
+  node = numericExpression() <EOF> { return node; }
 }
 
-/** Parses a logical numeric expression. */
-AstNode logicalExpression() :
-{
-  final AstNode left;
-  final AstNode right;
+
+/** Parses a numeric expression.
+ *
+ * <p>Accepts expressions like "not 66, 99, 4", "1 to 100"
+ * and returns an AST.
+ * See https://docs.looker.com/reference/filter-expressions#number
+ *
+ * <p>A top-level numeric expression is a comma-separated list of terms.
+ */
+AstNode numericExpression() : {
+  final List<AstNode> list = new ArrayList<>();
 }
 {
-  left = term() ( <COMMA> | <OR> ) right = numericExpression() {
-    return ast.logicalExpression(left, right);
-  }
+  addTerm(list)
+  ( ( <COMMA> | <OR> ) addTerm(list) )*
+  { return ast.logicalExpression(list); }
+}
+
+/** Adds a term to a list. */
+void addTerm(List<AstNode> list) : {
+  final AstNode node;
+}
+{
+  node = term() { list.add(node); }
 }
 
 /** Parses a numeric term. */
-AstNode term() :
-{
-  final AstNode n;
+AstNode term() : {
   final boolean is;
-  final AstNode right;
+  final AstNode node;
 }
 {
-  n = userAttribute() { return n; }
+  node = userAttribute() { return node; }
 |
   is = is()
   (
-    <NULL> { term = Op.NULL; }
-//  | term = intervalComp1()
-//  | term = intervalComp2()
-//  | term = intervalComp3()
-//  | term = intervalComp4()
-//  | <COMPARISON> { term = Op.NULL; }
-//  | <TO> { term = Op.NULL; }
-//  | <VALUE> { term = Op.NULL; }
+    <NULL> { node = ast.isNull(is); }
+  | node = intervalComp1(is)
+  | node = intervalComp2(is)
+  | node = to(is)
+  | node = interval(is)
   )
-  ( <COMMA> | <OR> ) right = numericExpression() {
-    return ast.call(Op.COMMA, left, right);
-  }
-|
-  is = is() term = interval(is) { return term; }
+  { return node; }
 }
 
+/** Reads an optional prefix (not, <>, !=) and returns whether the following
+ * term should be negated. */
 boolean is() : {}
 {
   <NOT> { return false; }
@@ -155,41 +151,131 @@ boolean is() : {}
 
 /* Special rules for defining BETWEEN ranges using comparison operators with AND/OR */
 
-/* >= 7 AND <80.44 becomes (7, 80.44) */
-AstNode intervalComp1() : {}
+/** Special interval,
+ * ">= 7 AND <80.44" becomes "(7, 80.44)", and
+ * ">=80.44 OR <.1" becomes "(0.01, 80.44]".
+ * Also parses comparison, "> 10". */
+AstNode intervalComp1(boolean is) : {
+ final Bound leftBound;
+ final BigDecimal left;
+ final BigDecimal right;
+ final Bound rightBound;
+ final boolean reverse;
+}
 {
-  { return null; }
+  ( ">" { leftBound = Bound.OPEN; }
+  | ">=" { leftBound = Bound.CLOSED; }
+  )
+  left = number()
+  (
+    ( <AND> { reverse = false; }
+    | <OR> { reverse = true; }
+    )
+    ( "<" { rightBound = Bound.OPEN; }
+    | "<=" { rightBound = Bound.CLOSED; }
+    )
+    right = number() {
+      if (reverse) {
+        // FIXME number_grammar.ts passes false, should pass !is
+        return ast.between(!is, leftBound.flip(), rightBound.flip(), right,
+            left);
+      } else {
+        return ast.between(is, leftBound, rightBound, left, right);
+      }
+    }
+  |
+    { return ast.between(is, leftBound, Bound.ABSENT, left, null); }
+  )
 }
 
-AstNode interval(boolean is) : {}
+/** Special interval, second kind;
+ * "<=80.44  AND    >.1"  becomes "(0.01, 80.44]", and
+ * "<= 7 OR >80.44" becomes "[7, 80.44)".
+ * Also parses comparison, "< 10". */
+AstNode intervalComp2(boolean is) : {
+ final Bound leftBound;
+ final BigDecimal left;
+ final BigDecimal right;
+ final Bound rightBound;
+ final boolean reverse;
+}
 {
-  { throw new UnsupportedOperationException(); }
-/*
-open:OPEN _ left:(number) _ COMMA _ right:(number) _ close:CLOSE {
-  return {
-    type: 'between',
-      bounds: open + close,
-      low: left,
-      high: right
+  ( "<" { leftBound = Bound.OPEN; }
+  | "<=" { leftBound = Bound.CLOSED; }
+  )
+  left = number()
+  (
+    ( <AND> { reverse = false; }
+    | <OR> { reverse = true; }
+    )
+    ( ">" { rightBound = Bound.OPEN; }
+    | ">=" { rightBound = Bound.CLOSED; }
+    )
+    right = number() {
+      if (reverse) {
+        // FIXME number_grammar.ts passes false, should pass !is
+        return ast.between(!is, rightBound.flip(), leftBound.flip(), left, right);
+      } else {
+        return ast.between(is, rightBound, leftBound, right, left);
+      }
+    }
+  |
+    { return ast.between(is, Bound.ABSENT, leftBound, null, left); }
+  )
+}
+
+/** Parses a range (such as "5 to 10", "to 10", "5 to"), and also a numeric
+ * literal (such as "5"). */
+AstNode to(boolean is) : {
+  final BigDecimal begin;
+  final BigDecimal end;
+}
+{
+  begin = number()
+  (
+    <TO>
+    (
+      end = number() {
+        return ast.between(is, Bound.CLOSED, Bound.CLOSED, begin, end);
+      }
+    | { return ast.between(Op.CLOSED_ABSENT, is, begin); }
+    )
+  | { return ast.numberLiteral(is, begin); }
+  )
+|
+  <TO> end = number() {
+    return ast.between(Op.ABSENT_CLOSED, is, end);
   }
-} / open:OPEN _ left:(number) _ COMMA _  close:CLOSE {
-      const type = open == '(' ? '>' : '>='
-      const value = [left]
-      return {type:type, value:value}
-} /  open:OPEN _  COMMA _ right:(number) _ close:CLOSE {
-      const type = close == ')' ? '<' : '<='
-      const value = [right]
-      return {type:type, value:value}
- } / "(" _ "-inf" _ COMMA _ right:(number) _ close:CLOSE {
-      const type = close == ')' ? '<' : '<='
-      const value = [right]
-      return {type:type, value:value}
- } / open:OPEN _ left:(number) _ COMMA _ "inf" _ ")" {
-      const type = open == '(' ? '>' : '>='
-      const value = [left]
-      return {type:type, value:value}
- }
- */
+}
+
+AstNode interval(boolean is) : {
+ Bound leftBound;
+ final @Nullable BigDecimal left;
+ final @Nullable BigDecimal right;
+ Bound rightBound;
+}
+{
+  ( "(" { leftBound = Bound.OPEN; } | "[" { leftBound = Bound.CLOSED; } )
+  (
+    left = number()
+  | ("-inf")? { left = null; }
+  )
+  <COMMA>
+  (
+    right = number()
+  | ("inf")? { right = null; }
+  )
+  ( ")" { rightBound = Bound.OPEN; } | "]" { rightBound = Bound.CLOSED; } ) {
+    // FIXME: Grammar allows both bounds absent, e.g. '[,]' and '(-inf,inf)'
+    //   but should not
+    if (left == null) {
+      leftBound = Bound.ABSENT;
+    }
+    if (right == null) {
+      rightBound = Bound.ABSENT;
+    }
+    return ast.between(is, leftBound, rightBound, left, right);
+  }
 }
 
 AstNode userAttribute() : {}
@@ -199,44 +285,53 @@ AstNode userAttribute() : {}
   }
 }
 
+BigDecimal number() : {}
+{
+  ( <NUMBER_LITERAL> | <NUMBER_LITERAL0> ) { return new BigDecimal(token.image); }
+}
+
 /* LITERALS */
 
 <DEFAULT> TOKEN :
 {
-    < NON_NEGATIVE_INTEGER_LITERAL: (["0"-"9"])+ >
-    |
-    < NEGATIVE_INTEGER_LITERAL: "~"(["0"-"9"])+ >
-    |
-    < REAL_LITERAL: ("~")?(["0"-"9"])+ "." (["0"-"9"])+ >
-    |
-    < SCIENTIFIC_LITERAL: ("~")?(["0"-"9"])+
-                          ("." (["0"-"9"])+)?
-                          ["e", "E"] ("~")?(["0"-"9"])+>
-    |
-    < #HEXDIGIT: ["0"-"9","a"-"f","A"-"F"] >
-    |
-    < #WHITESPACE:
-    [ " ","\t","\n","\r","\f" ]
-    >
-    |
-    < QUOTED_STRING: <DOUBLE_QUOTE> ( (~["\"", "\\"]) | ("\\" "\"") | ("\\" "\\") )* <DOUBLE_QUOTE> >
-    |
-    < CHAR_LITERAL: ("#") <QUOTED_STRING> >
-    |
-    < NOT: "NOT" >
-|   < BANG_EQ: "!=" >
-|   < LT_GT: "<>" >
-|   < COMMA: "," >
-|   < OR: "OR" >
-|   < DOUBLE_LBRACE: "{{" >
-|   < DOUBLE_RBRACE: "}}" >
-|   < NULL: "NULL" >
+  < NUMBER_LITERAL: ("-")?
+      (["0"-"9"])+
+      ("." (["0"-"9"])+)?
+      (["e", "E"] ("-")?(["0"-"9"])+)? >
+| < NUMBER_LITERAL0: ("-")?
+      "." (["0"-"9"])+
+      (["e", "E"] ("-")?(["0"-"9"])+)? >
+| < QUOTED_STRING: <DOUBLE_QUOTE> ( (~["\"", "\\"]) | ("\\" "\"") | ("\\" "\\") )* <DOUBLE_QUOTE> >
+}
+
+<DEFAULT> SKIP :
+{ " "
+| "\t"
+| "\n"
+| "\r"
+| "\f"
 }
 
 <DEFAULT> TOKEN :
 {
-    < EQ: "=" >
-    | < DOUBLE_QUOTE: "\"" >
+  < #WHITESPACE: [ " ","\t","\n","\r","\f" ] >
+}
+
+<DEFAULT> TOKEN :
+{
+  < DOUBLE_QUOTE: "\"" >
+| < CHAR_LITERAL: ("#") <QUOTED_STRING> >
+| < NOT: "NOT" >
+| < AND: "AND" >
+| < OR: "OR" >
+| < BANG_EQ: "!=" >
+| < LT_GT: "<>" >
+| < COMMA: "," >
+| < TO: "TO" >
+| < DOUBLE_LBRACE: "{{" >
+| < DOUBLE_RBRACE: "}}" >
+| < NULL: "NULL" >
+| < EQ: "=" >
 }
 
 // End FiltexParser.jj

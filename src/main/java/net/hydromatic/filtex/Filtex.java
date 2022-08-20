@@ -17,7 +17,10 @@
 package net.hydromatic.filtex;
 
 import net.hydromatic.filtex.ast.AstNode;
+import net.hydromatic.filtex.parse.FiltexParserImpl;
+import net.hydromatic.filtex.parse.ParseException;
 
+import java.io.StringReader;
 import java.util.Locale;
 
 /**
@@ -77,7 +80,17 @@ public class Filtex {
    * }</pre>
    */
   public static AstNode parseFilterExpression(TypeFamily typeFamily, String s) {
-    throw new UnsupportedOperationException();
+    FiltexParserImpl parser = new FiltexParserImpl(new StringReader(s));
+    try {
+      switch (typeFamily) {
+      case NUMBER:
+        return parser.numericExpression();
+      default:
+        throw new IllegalArgumentException("unknown type family " + typeFamily);
+      }
+    } catch (ParseException e) {
+      throw new RuntimeException(e.getMessage());
+    }
   }
 
   /** Returns a localized, human-readable summary of a

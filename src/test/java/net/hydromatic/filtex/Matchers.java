@@ -17,10 +17,16 @@
 package net.hydromatic.filtex;
 
 import net.hydromatic.filtex.ast.Ast;
+import net.hydromatic.filtex.ast.AstNode;
+import net.hydromatic.filtex.ast.AstWriter;
 
+import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Matchers for use in Filtex tests. */
 public abstract class Matchers {
@@ -28,9 +34,9 @@ public abstract class Matchers {
 
   /** Matches a literal by value. */
   @SuppressWarnings("rawtypes")
-  static Matcher<Ast.Literal> isLiteral(Comparable comparable, String s) {
-    return new TypeSafeMatcher<Ast.Literal>() {
-      protected boolean matchesSafely(Ast.Literal literal) {
+  static Matcher<Ast.Comparison> isLiteral(Comparable comparable, String s) {
+    return new TypeSafeMatcher<Ast.Comparison>() {
+      protected boolean matchesSafely(Ast.Comparison literal) {
         final String actual = literal.toString();
         return literal.value.equals(comparable)
             && actual.equals(s);
@@ -42,6 +48,35 @@ public abstract class Matchers {
       }
     };
   }
+
+  /** Matches an AST node by its string representation. */
+  static Matcher<AstNode> isAst(String expected) {
+    return isAst(AstNode.class, true, expected);
+  }
+
+  /** Matches an AST node by its string representation. */
+  static <T extends AstNode> Matcher<T> isAst(Class<? extends T> clazz,
+      boolean parenthesize, String expected) {
+    return new CustomTypeSafeMatcher<T>("ast with value [" + expected + "]") {
+      protected boolean matchesSafely(T t) {
+        assertThat(clazz.isInstance(t), is(true));
+        final String s =
+            stringValue(t);
+        return s.equals(expected);
+      }
+
+      private String stringValue(T t) {
+        return t.unparse(new AstWriter()).toString();
+      }
+
+      @Override protected void describeMismatchSafely(T item,
+          Description description) {
+        description.appendText("was ").appendValue(stringValue(item));
+      }
+    };
+  }
+
+
 }
 
 // End Matchers.java

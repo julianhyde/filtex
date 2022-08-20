@@ -16,7 +16,7 @@
  */
 package net.hydromatic.filtex;
 
-import net.hydromatic.filtex.ast.Ast;
+import net.hydromatic.filtex.ast.AstNode;
 import net.hydromatic.filtex.parse.FiltexParserImpl;
 import net.hydromatic.filtex.parse.ParseException;
 
@@ -49,11 +49,19 @@ public class Ft {
     return this;
   }
 
-  Ft assertParseLiteral(Matcher<Ast.Literal> matcher) {
+  Ft assertParse(Matcher<? extends AstNode> matcher) {
     return withParser(parser -> {
       try {
-        final Ast.Literal literal = parser.literalEof();
-        assertThat(literal, matcher);
+        final AstNode node;
+        switch (typeFamily) {
+        case NUMBER:
+          node = parser.numericExpression();
+          break;
+        default:
+          throw new AssertionError("unknown " + typeFamily);
+        }
+        //noinspection unchecked
+        assertThat(node, (Matcher) matcher);
       } catch (ParseException e) {
         throw new RuntimeException(e);
       }

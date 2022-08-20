@@ -18,7 +18,10 @@ package net.hydromatic.filtex;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+
 import static net.hydromatic.filtex.Ft.ft;
+import static net.hydromatic.filtex.Matchers.isAst;
 import static net.hydromatic.filtex.Matchers.isLiteral;
 
 /**
@@ -27,14 +30,18 @@ import static net.hydromatic.filtex.Matchers.isLiteral;
 public class ParserTest {
   @Test void testString() {
     ft(TypeFamily.STRING, "\"abc\"")
-        .assertParseLiteral(isLiteral("abc", "abc"));
+        .assertParse(isAst("abc"));
   }
 
   @Test void testNumber() {
     ft(TypeFamily.NUMBER, "20")
-        .assertParseLiteral(isLiteral(20, "20"));
+        .assertParse(isLiteral(BigDecimal.valueOf(20), "20"));
+    ft(TypeFamily.NUMBER, "20,30")
+        .assertParse(isAst("{20,30}"));
+    ft(TypeFamily.NUMBER, "[0,20]")
+        .assertParse(isAst("[0,20]"));
     ft(TypeFamily.NUMBER, "[0,20],>30")
-        .assertParseLiteral(isLiteral(20, "20"));
+        .assertParse(isAst("{[0,20],(30,inf)}"));
   }
 }
 

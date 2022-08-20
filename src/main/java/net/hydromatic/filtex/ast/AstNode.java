@@ -16,12 +16,72 @@
  */
 package net.hydromatic.filtex.ast;
 
-/** Base class for Abstract Syntax Tree node. */
-public class AstNode {
-  public final Pos pos;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-  public AstNode(Pos pos, Op op) {
+/** Base class for Abstract Syntax Tree node. */
+public abstract class AstNode {
+  public final Pos pos;
+  public final Op op;
+
+  protected AstNode(Pos pos, Op op) {
     this.pos = pos;
+    this.op = op;
+  }
+
+  @Override public String toString() {
+    return unparse(new AstWriter()).toString();
+  }
+
+  public abstract AstWriter unparse(AstWriter writer);
+
+  public abstract void accept(Visitor visitor, @Nullable AstNode parent);
+
+  public abstract Asts.Model model();
+
+  public String expression() {
+    return ""; // TODO
+  }
+
+  interface Visitor {
+    void visit(Ast.Call2 call2, @Nullable AstNode parent);
+    void visit(Ast.Call1 call1, @Nullable AstNode parent);
+    void visit(Ast.Call0 call0, @Nullable AstNode parent);
+    void visit(Ast.Range range, @Nullable AstNode parent);
+    void visit(Ast.Comparison literal, @Nullable AstNode parent);
+  }
+
+  /** Basic implementation of {@link net.hydromatic.filtex.ast.AstNode.Visitor}
+   * that recursively visits children. */
+  public abstract static class VisitorImpl implements AstNode.Visitor {
+    /** Called after the first child and before the second child of a node with
+     * two children. */
+    public void infix(Ast.Call2 call2, @Nullable AstNode parent) {
+    }
+
+    @Override public void visit(Ast.Call2 call2, @Nullable AstNode parent) {
+      if (call2.left != null) {
+        call2.left.accept(this, call2);
+      }
+      infix(call2, parent);
+      if (call2.right != null) {
+        call2.right.accept(this, call2);
+      }
+    }
+
+    @Override public void visit(Ast.Call1 call1, @Nullable AstNode parent) {
+      if (call1.node != null) {
+        call1.node.accept(this, call1);
+      }
+    }
+
+    @Override public void visit(Ast.Call0 call0, @Nullable AstNode parent) {
+    }
+
+    @Override public void visit(Ast.Comparison literal, @Nullable AstNode parent) {
+    }
+
+    @Override public void visit(Ast.Range range, @Nullable AstNode parent) {
+    }
   }
 }
 
