@@ -18,38 +18,19 @@ package net.hydromatic.filtex.ast;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Base class for Abstract Syntax Tree node. */
-public abstract class AstNode {
-  public final Pos pos;
-  public final Op op;
+/** Visits AST nodes. */
+interface AstVisitor {
+  void visit(Ast.Call2 call2, @Nullable AstNode parent);
 
-  /** Unique identifier of a node, or null. It's mutable, so that we don't have
-   * to copy the tree just to number it, but just be careful. */
-  public @Nullable Integer id;
+  void visit(Ast.Call1 call1, @Nullable AstNode parent);
 
-  protected AstNode(Pos pos, Op op) {
-    this.pos = pos;
-    this.op = op;
-  }
+  void visit(Ast.Call0 call0, @Nullable AstNode parent);
 
-  @Override public String toString() {
-    return unparse(new AstWriter()).toString();
-  }
+  void visit(Ast.Range range, @Nullable AstNode parent);
 
-  public abstract AstWriter unparse(AstWriter writer);
+  void visit(Ast.Comparison literal, @Nullable AstNode parent);
 
-  public abstract void accept(AstVisitor visitor, @Nullable AstNode parent);
-
-  public abstract Asts.Model model();
-
-  public boolean is() {
-    return true;
-  }
-
-  public @Nullable String expression() {
-    return null;
-  }
-
+  void visit(Ast.MatchesAdvanced matchesAdvanced, @Nullable AstNode parent);
 }
 
-// End AstNode.java
+// End AstVisitor.java

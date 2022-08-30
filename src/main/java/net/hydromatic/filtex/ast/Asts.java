@@ -53,8 +53,8 @@ public class Asts {
   public static List<Model> treeToList(AstNode root) {
     final List<Model> orItems = new ArrayList<>();
     final List<Model> andItems = new ArrayList<>();
-    final AstNode.Visitor visitor =
-        new AstNode.VisitorImpl() {
+    final AstVisitor visitor =
+        new AstVisitorImpl() {
           @Override public void infix(Ast.Call2 call2,
               @Nullable AstNode parent) {
             if (call2.op != Op.COMMA) {
@@ -148,7 +148,7 @@ public class Asts {
 
   /** Walks over a tree, applying a consumer to the model of each node. */
   public static void traverse(AstNode root, Consumer<Model> consumer) {
-    AstNode.VisitorImpl visitor = new AstNode.VisitorImpl() {
+    AstVisitorImpl visitor = new AstVisitorImpl() {
       @Override public void visit(Ast.Call2 call2, @Nullable AstNode parent) {
         consumer.accept(call2.model());
         super.visit(call2, parent);
@@ -307,7 +307,7 @@ public class Asts {
 
   /** Visitor that assigns a unique {@link AstNode#id} to every node in a tree.
    * Modifies the tree.  */
-  private static class NumberingVisitor extends AstNode.VisitorImpl {
+  private static class NumberingVisitor extends AstVisitorImpl {
     final Set<Integer> set = new HashSet<>();
 
     void handle(AstNode node) {

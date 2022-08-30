@@ -42,7 +42,7 @@ public class Ast {
       this.value = value;
     }
 
-    @Override public void accept(Visitor visitor, @Nullable AstNode parent) {
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
       visitor.visit(this, parent);
     }
 
@@ -77,7 +77,7 @@ public class Ast {
       return writer.append(op.s);
     }
 
-    @Override public void accept(Visitor visitor, @Nullable AstNode parent) {
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
       visitor.visit(this, parent);
     }
 
@@ -97,7 +97,7 @@ public class Ast {
       this.node = node;
     }
 
-    @Override public void accept(Visitor visitor, @Nullable AstNode parent) {
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
       visitor.visit(this, parent);
     }
 
@@ -130,7 +130,7 @@ public class Ast {
       return writer.infix(left, op, right);
     }
 
-    @Override public void accept(Visitor visitor, AstNode parent) {
+    @Override public void accept(AstVisitor visitor, AstNode parent) {
       visitor.visit(this, parent);
     }
 
@@ -168,7 +168,7 @@ public class Ast {
       return writer;
     }
 
-    @Override public void accept(Visitor visitor, AstNode parent) {
+    @Override public void accept(AstVisitor visitor, AstNode parent) {
       visitor.visit(this, parent);
     }
 
@@ -208,7 +208,7 @@ public class Ast {
       return expression;
     }
 
-    @Override public void accept(Visitor visitor, @Nullable AstNode parent) {
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
       visitor.visit(this, parent);
     }
 
