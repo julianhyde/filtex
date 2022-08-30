@@ -139,8 +139,8 @@ AstNode term() : {
   { return node; }
 }
 
-/** Reads an optional prefix (not, <>, !=) and returns whether the following
- * term should be negated. */
+/** Reads an optional prefix ("not", "&lt;&gt;", "!=") and returns whether the
+ * following term should be negated. */
 boolean is() : {}
 {
   <NOT> { return false; }
@@ -152,9 +152,9 @@ boolean is() : {}
 /* Special rules for defining BETWEEN ranges using comparison operators with AND/OR */
 
 /** Special interval,
- * ">= 7 AND <80.44" becomes "(7, 80.44)", and
- * ">=80.44 OR <.1" becomes "(0.01, 80.44]".
- * Also parses comparison, "> 10". */
+ * "{@code >= 7 AND <80.44}" becomes "(7, 80.44)", and
+ * "{@code >=80.44 OR <.1}" becomes "(0.01, 80.44]".
+ * Also parses comparison, "{@code > 10}". */
 AstNode intervalComp1(boolean is) : {
  final Bound leftBound;
  final BigDecimal left;
@@ -189,9 +189,9 @@ AstNode intervalComp1(boolean is) : {
 }
 
 /** Special interval, second kind;
- * "<=80.44  AND    >.1"  becomes "(0.01, 80.44]", and
- * "<= 7 OR >80.44" becomes "[7, 80.44)".
- * Also parses comparison, "< 10". */
+ * "{@code <=80.44  AND    >.1}"  becomes "(0.01, 80.44]", and
+ * "{@code <= 7 OR >80.44}" becomes "[7, 80.44)".
+ * Also parses comparison, "{@code < 10}". */
 AstNode intervalComp2(boolean is) : {
  final Bound leftBound;
  final BigDecimal left;

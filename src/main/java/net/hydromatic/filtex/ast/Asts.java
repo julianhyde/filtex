@@ -38,13 +38,13 @@ public class Asts {
    * Converts a FilterAST to a list of FilterASTNodes using in order traversal
    * (left, node, right)
    *
-   * <pre>
+   * <pre>{@code
    *    (root(1))      ->  [0,1,2,3,4]
    *    /      \
    * left(0)   right(3)
    *           /     \
    *      left(2)     right(4)
-   * </pre>
+   * }</pre>
    *
    * <p>See
    * <a href="https://github.com/looker-open-source/components/blob/main/packages/filter-expressions/src/utils/tree/tree_to_list.ts">

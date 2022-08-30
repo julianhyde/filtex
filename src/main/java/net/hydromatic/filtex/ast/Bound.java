@@ -27,8 +27,8 @@ public enum Bound {
 
   /** Returns the bound with the reverse sense.
    *
-   * <p>An open bound, 'x > 0', becomes a closed bound when negated to 'x <= 0',
-   * amd vice versa. */
+   * <p>An open bound, "{@code x > 0}", becomes a closed bound when negated to
+   * "{@code x <= 0}", and vice versa. */
   public Bound flip() {
     switch (this) {
     case OPEN:

@@ -69,8 +69,8 @@ public enum AstBuilder {
     return new Ast.Call0(Op.NULL, is);
   }
 
-  /** Creates a term representing a range, such as "[0, 10)", or a comparison,
-   * such as "> 5. */
+  /** Creates a term representing a range, such as "{@code [0, 10)}", or a
+   * comparison, such as "{@code > 5}". */
   public AstNode between(boolean is, Bound leftBound, Bound rightBound,
       @Nullable BigDecimal left, @Nullable BigDecimal right) {
     if (left != null && right != null) {
@@ -89,8 +89,8 @@ public enum AstBuilder {
     return new Ast.Range(op, null, is, left, right);
   }
 
-  /** Creates a term representing a one-sided range, such as "> 10"
-   * or "<= 0". */
+  /** Creates a term representing a one-sided range, such as "{@code > 10}"
+   * or "{@code <= 0}". */
   public AstNode between(Op op, boolean is, BigDecimal number) {
     switch (op) {
     case ABSENT_OPEN:

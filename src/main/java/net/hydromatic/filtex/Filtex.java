@@ -142,7 +142,8 @@ public class Filtex {
    *   <li>toString: a function that converts an AST into an expression of the
    *     given type
    *   <li>subTypes: an array containing the sub-types of the expression type,
-   *     for example ">", "<", "=", "between", etc, for a number expression type
+   *     for example "{@code >}", "{@code <}", "{@code =}", "{@code between}"
+   *     for a number expression type
    * </ul>
    */
   public static void typeToGrammar() {
