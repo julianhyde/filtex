@@ -34,11 +34,12 @@ public abstract class Matchers {
 
   /** Matches a literal by value. */
   @SuppressWarnings("rawtypes")
-  static Matcher<Ast.Comparison> isLiteral(Comparable comparable, String s) {
+  static Matcher<Ast.Comparison> isComparison(Comparable comparable, String s) {
     return new TypeSafeMatcher<Ast.Comparison>() {
       protected boolean matchesSafely(Ast.Comparison literal) {
         final String actual = literal.toString();
-        return literal.value.equals(comparable)
+        return literal.value.size() == 1
+            && literal.value.get(0).equals(comparable)
             && actual.equals(s);
       }
 

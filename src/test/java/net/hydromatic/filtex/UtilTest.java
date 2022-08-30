@@ -16,19 +16,20 @@
  */
 package net.hydromatic.filtex;
 
-import com.google.common.collect.ImmutableList;
 import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.AstNode;
-import net.hydromatic.filtex.ast.AstWriter;
 import net.hydromatic.filtex.ast.Asts;
 import net.hydromatic.filtex.ast.Bound;
-import org.checkerframework.checker.nullness.qual.Nullable;
+
+import com.google.common.collect.ImmutableList;
+
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 import static net.hydromatic.filtex.ast.AstBuilder.ast;
+
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 

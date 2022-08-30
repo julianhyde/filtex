@@ -23,6 +23,10 @@ public abstract class AstNode {
   public final Pos pos;
   public final Op op;
 
+  /** Unique identifier of a node, or null. It's mutable, so that we don't have
+   * to copy the tree just to number it, but just be careful. */
+  public @Nullable Integer id;
+
   protected AstNode(Pos pos, Op op) {
     this.pos = pos;
     this.op = op;
@@ -38,8 +42,12 @@ public abstract class AstNode {
 
   public abstract Asts.Model model();
 
-  public String expression() {
-    return ""; // TODO
+  public boolean is() {
+    return true;
+  }
+
+  public @Nullable String expression() {
+    return null;
   }
 
   interface Visitor {
@@ -48,6 +56,7 @@ public abstract class AstNode {
     void visit(Ast.Call0 call0, @Nullable AstNode parent);
     void visit(Ast.Range range, @Nullable AstNode parent);
     void visit(Ast.Comparison literal, @Nullable AstNode parent);
+    void visit(Ast.MatchesAdvanced matchesAdvanced, @Nullable AstNode parent);
   }
 
   /** Basic implementation of {@link net.hydromatic.filtex.ast.AstNode.Visitor}
@@ -77,10 +86,15 @@ public abstract class AstNode {
     @Override public void visit(Ast.Call0 call0, @Nullable AstNode parent) {
     }
 
-    @Override public void visit(Ast.Comparison literal, @Nullable AstNode parent) {
+    @Override public void visit(Ast.Comparison literal,
+        @Nullable AstNode parent) {
     }
 
     @Override public void visit(Ast.Range range, @Nullable AstNode parent) {
+    }
+
+    @Override public void visit(Ast.MatchesAdvanced matchesAdvanced,
+        @Nullable AstNode parent) {
     }
   }
 }

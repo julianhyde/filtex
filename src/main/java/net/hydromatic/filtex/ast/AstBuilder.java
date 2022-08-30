@@ -16,6 +16,8 @@
  */
 package net.hydromatic.filtex.ast;
 
+import com.google.common.collect.ImmutableList;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigDecimal;
@@ -33,17 +35,23 @@ public enum AstBuilder {
   /** Creates a comparison. */
   @SuppressWarnings("rawtypes")
   public Ast.Comparison comparison(boolean is, Op op, Comparable value) {
-    return new Ast.Comparison(is, op, value);
+    return comparison(is, op, ImmutableList.of(value));
+  }
+
+  @SuppressWarnings("rawtypes")
+  public Ast.Comparison comparison(boolean is, Op op,
+      Iterable<Comparable> value) {
+    return new Ast.Comparison(is, op, ImmutableList.copyOf(value));
   }
 
   /** Creates a number literal. */
   public Ast.Comparison numberLiteral(boolean is, BigDecimal value) {
-    return comparison(is, Op.EQ, value);
+    return comparison(is, Op.EQ, ImmutableList.of(value));
   }
 
   /** Creates a string literal. */
   public Ast.Comparison stringLiteral(boolean is, String value) {
-    return comparison(is, Op.EQ, value);
+    return comparison(is, Op.EQ, ImmutableList.of(value));
   }
 
   /** Creates a logical expression. */
@@ -53,7 +61,7 @@ public enum AstBuilder {
 
   /** Folds a list into a left-deep a logical expression. */
   public AstNode logicalExpression(List<AstNode> terms) {
-    return foldLeft(terms, this::logicalExpression);
+    return foldRight(terms, this::logicalExpression);
   }
 
   /** Creates a term representing "null" or "not null". */
@@ -78,7 +86,7 @@ public enum AstBuilder {
 
   private Ast.Range range(Op op, boolean is, BigDecimal left,
       BigDecimal right) {
-    return new Ast.Range(op, is, left, right);
+    return new Ast.Range(op, null, is, left, right);
   }
 
   /** Creates a term representing a one-sided range, such as "> 10"
@@ -94,6 +102,12 @@ public enum AstBuilder {
     default:
       throw new AssertionError("unknown " + op);
     }
+  }
+
+  /** Creates a matchesAdvanced. */
+  @SuppressWarnings("rawtypes")
+  public Ast.MatchesAdvanced matchesAdvanced(String expression) {
+    return new Ast.MatchesAdvanced(expression);
   }
 
   /** Converts a pair of bounds into an operator.
@@ -118,6 +132,14 @@ public enum AstBuilder {
       throw new IllegalArgumentException("empty list");
     }
     return previous;
+  }
+
+  /** Folds a list to the right.
+   * Thus [1, 2, 3, 4] becomes (1, (2, (3, 4))). */
+  private static <E> E foldRight(Iterable<? extends E> iterable,
+      BinaryOperator<E> combiner) {
+    return foldLeft(ImmutableList.copyOf(iterable).reverse(),
+        (BinaryOperator<E>) (x, y) -> combiner.apply(y, x));
   }
 }
 

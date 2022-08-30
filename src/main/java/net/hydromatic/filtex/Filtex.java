@@ -16,12 +16,18 @@
  */
 package net.hydromatic.filtex;
 
+import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.AstNode;
 import net.hydromatic.filtex.parse.FiltexParserImpl;
 import net.hydromatic.filtex.parse.ParseException;
+import net.hydromatic.filtex.parse.TokenMgrError;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.StringReader;
 import java.util.Locale;
+
+import static net.hydromatic.filtex.ast.AstBuilder.ast;
 
 /**
  * Filter expressions.
@@ -79,18 +85,38 @@ public class Filtex {
    * }
    * }</pre>
    */
-  public static AstNode parseFilterExpression(TypeFamily typeFamily, String s) {
-    FiltexParserImpl parser = new FiltexParserImpl(new StringReader(s));
+  public static AstNode parseFilterExpression(TypeFamily typeFamily,
+      String expression) {
+    FiltexParserImpl parser =
+        new FiltexParserImpl(new StringReader(expression));
     try {
       switch (typeFamily) {
       case NUMBER:
-        return parser.numericExpression();
+        AstNode node = parser.numericExpressionEof();
+        return Transforms.numberTransform(node);
+
       default:
         throw new IllegalArgumentException("unknown type family " + typeFamily);
       }
-    } catch (ParseException e) {
-      throw new RuntimeException(e.getMessage());
+    } catch (ParseException | TokenMgrError e) {
+      return getMatchesAdvancedNode(expression, null);
     }
+  }
+
+  private static AstNode getMatchesAdvancedNode(String expression,
+      @Nullable AstNode node) {
+    final Integer id;
+    if (node != null) {
+      if (node.expression() != null) {
+        expression = node.expression();
+      }
+      id = node.id;
+    } else {
+      id = 1;
+    }
+    final Ast.MatchesAdvanced matchesAdvanced = ast.matchesAdvanced(expression);
+    matchesAdvanced.id = id;
+    return matchesAdvanced;
   }
 
   /** Returns a localized, human-readable summary of a

@@ -51,29 +51,6 @@ public class NumberTest {
   void checkNumericItem(String expression, String type) {
     final AstNode ast =
         parseFilterExpression(TypeFamily.NUMBER, expression);
-    if (expression.equals("not 66, 99, 4")) { // FIXME
-      return;
-    }
-    if (expression.equals("5.5 to 10")) {
-      assert type.equals("between");
-      type = ">="; // FIXME
-    }
-    if (expression.equals("not 3 to 80.44")) {
-      assert type.equals("!between");
-      type = ">="; // FIXME
-    }
-    if (expression.equals(">= 5.5 AND <=10")) {
-      assert type.equals("between");
-      type = ">="; // FIXME
-    }
-    if (expression.equals("<3 OR >80.44")) {
-      assert type.equals("!between");
-      type = ">="; // FIXME
-    }
-    if (expression.equals(">10 AND <=20 OR 90")) {
-      assert type.equals("between");
-      type = ">"; // FIXME
-    }
     final List<Asts.Model> list = Asts.treeToList(ast);
     final Asts.Model item = list.get(0);
     String itemType = item.type;
@@ -102,54 +79,67 @@ public class NumberTest {
   }
 
   static final ImmutableList<TestValues.Triple> NUMERIC_CASES =
-      ImmutableList.of(
-          new TestValues.Triple("1", "=", "1"),
-          new TestValues.Triple("1, 2, 3", "=", "1,2,3"),
-          new TestValues.Triple("3.14159", "=", "3.14159"),
-          new TestValues.Triple("123456789", "=", "123456789"),
-          new TestValues.Triple("0.01", "=", "0.01"),
-          new TestValues.Triple(".01", "=", "0.01"),
-          new TestValues.Triple("-.01", "=", "-0.01"),
-          new TestValues.Triple("-0.01", "=", "-0.01"),
-          new TestValues.Triple("1, -1, 0.1", "=", "1,-1,0.1"),
+      TestValues.Triple.builder()
+          .add("1", "=", "1")
+          .add("1, 2, 3", "=", "1,2,3")
+          .add("3.14159", "=", "3.14159")
+          .add("123456789", "=", "123456789")
+          .add("0.01", "=", "0.01")
+          .add(".01", "=", "0.01")
+          .add("-.01", "=", "-0.01")
+          .add("-0.01", "=", "-0.01")
+          .add("1, -1, 0.1", "=", "1,-1,0.1")
 
-          new TestValues.Triple("not 1", "!=", "1"),
-          new TestValues.Triple("not 1, 2, 3", "!=", "1,2,3"),
-          new TestValues.Triple("<> 1", "!=", "1"),
-          new TestValues.Triple("!= 1, 2, 3", "!=", "1,2,3"),
-          new TestValues.Triple("not -1.2", "!=", "-1.2"),
-          new TestValues.Triple("not -.2", "!=", "-0.2"),
+          .add("not 1", "!=", "1")
+          .add("not 1, 2, 3", "!=", "1,2,3")
+          .add("<> 1", "!=", "1")
+          .add("!= 1, 2, 3", "!=", "1,2,3")
+          .add("not -1.2", "!=", "-1.2")
+          .add("not -.2", "!=", "-0.2")
 
-          new TestValues.Triple("> 1.1", ">", "1.1"),
-          new TestValues.Triple(">0.1", ">", "0.1"),
-          new TestValues.Triple(">999", ">", "999"),
-          new TestValues.Triple("> -42", ">", "-42"),
-          new TestValues.Triple(">-242", ">", "-242"),
-          new TestValues.Triple(">    0", ">", "0"),
+          .add("> 1.1", ">", "1.1")
+          .add(">0.1", ">", "0.1")
+          .add(">999", ">", "999")
+          .add("> -42", ">", "-42")
+          .add(">-242", ">", "-242")
+          .add(">    0", ">", "0")
 
-          new TestValues.Triple("< 1.1", "<", "1.1"),
-          new TestValues.Triple("<3", "<", "3"),
-          new TestValues.Triple("<0.1", "<", "0.1"),
-          new TestValues.Triple("<999", "<", "999"),
-          new TestValues.Triple("< -42", "<", "-42"),
-          new TestValues.Triple("<-242", "<", "-242"),
-          new TestValues.Triple("<    0", "<", "0"),
+          .add("< 1.1", "<", "1.1")
+          .add("<3", "<", "3")
+          .add("<0.1", "<", "0.1")
+          .add("<999", "<", "999")
+          .add("< -42", "<", "-42")
+          .add("<-242", "<", "-242")
+          .add("<    0", "<", "0")
 
-          new TestValues.Triple("<= 1.1", "<=", "1.1"),
-          new TestValues.Triple("<=0.1", "<=", "0.1"),
-          new TestValues.Triple("<=999", "<=", "999"),
-          new TestValues.Triple("<= -42", "<=", "-42"),
-          new TestValues.Triple("<=-242", "<=", "-242"),
-          new TestValues.Triple("<=    0", "<=", "0"),
+          .add("<= 1.1", "<=", "1.1")
+          .add("<=0.1", "<=", "0.1")
+          .add("<=999", "<=", "999")
+          .add("<= -42", "<=", "-42")
+          .add("<=-242", "<=", "-242")
+          .add("<=    0", "<=", "0")
 
-          new TestValues.Triple(">= 1.1", ">=", "1.1"),
-          new TestValues.Triple(">=0.1", ">=", "0.1"),
-          new TestValues.Triple(">=999", ">=", "999"),
-          new TestValues.Triple(">= -42", ">=", "-42"),
-          new TestValues.Triple(">=-242", ">=", "-242"),
-          new TestValues.Triple(">=    0", ">=", "0"));
+          .add(">= 1.1", ">=", "1.1")
+          .add(">=0.1", ">=", "0.1")
+          .add(">=999", ">=", "999")
+          .add(">= -42", ">=", "-42")
+          .add(">=-242", ">=", "-242")
+          .add(">=    0", ">=", "0")
+          .build();
 
   void checkNumeric(String expression, String type, String textInput) {
+    if (expression.equals("not 1, not 2")) {
+      assert textInput.equals("1,2");
+//      textInput = "1"; // FIXME
+    }
+    if (expression.equals("<> 1, <> 2")) {
+      assert textInput.equals("1,2");
+//      textInput = "1"; // FIXME
+    }
+    if (expression.equals("!= 1, != 2")) {
+      assert textInput.equals("1,2");
+//      textInput = "1"; // FIXME
+    }
     final AstNode ast = parseFilterExpression(TypeFamily.NUMBER, expression);
     final List<Asts.Model> list = Asts.treeToList(ast);
     final Asts.Model item = list.get(0);
@@ -160,9 +150,7 @@ public class NumberTest {
     assertThat(itemType, is(type));
     if (!type.equals("matchesAdvanced")
         && !type.equals("between")) {
-      Object itemValue = item.value instanceof Iterable
-          ? String.join(",", (Iterable) item.value)
-          : item.value;
+      Object itemValue = item.valueString();
       assertThat(itemValue, is(textInput));
     }
   }
@@ -173,13 +161,14 @@ public class NumberTest {
   }
 
   static final List<TestValues.Pair> NULL_CASES =
-      ImmutableList.of(
-          new TestValues.Pair("NULL", "null"),
-          new TestValues.Pair("NOT NULL", "!null"),
-          new TestValues.Pair("null", "null"),
-          new TestValues.Pair("not null", "!null"),
-          new TestValues.Pair("nUll", "null"),
-          new TestValues.Pair("Not Null", "!null"));
+      TestValues.Pair.builder()
+          .add("NULL", "null")
+          .add("NOT NULL", "!null")
+          .add("null", "null")
+          .add("not null", "!null")
+          .add("nUll", "null")
+          .add("Not Null", "!null")
+          .build();
 
   void checkNull(String expression, String type) {
     final AstNode ast = parseFilterExpression(TypeFamily.NUMBER, expression);
@@ -194,32 +183,27 @@ public class NumberTest {
   }
 
   static final List<TestValues.GrammarTestItem> BETWEEN_CASES =
-      ImmutableList.of(
-          new TestValues.GrammarTestItem("1 to 5", "between", "1", "5", "[]"),
-          new TestValues.GrammarTestItem("-1.0 to .75", "between", "-1.0", ".75", "[]"),
-          new TestValues.GrammarTestItem(">7 AND <80.44", "between", "7", "80.44", "()"),
-          new TestValues.GrammarTestItem(">= 7 AND <80.44", "between", "7", "80.44", "[)"),
-          new TestValues.GrammarTestItem("<=80.44  AND    >.1", "between", "0.1", "80.44",
-              "(]"),
-          new TestValues.GrammarTestItem("[2, 4]", "between", "2", "4", "[]"),
-          new TestValues.GrammarTestItem("[0.1,   -4)", "between", "0.1", "-4", "[)"),
-          new TestValues.GrammarTestItem("(0.1,   -4]", "between", "0.1", "-4", "(]"),
-          new TestValues.GrammarTestItem("(0.1, .11111)", "between", "0.1", "0.11111",
-              "()"),
-          new TestValues.GrammarTestItem("NOT 1 to 5", "!between", "1", "5", "[]"),
-          new TestValues.GrammarTestItem("NOT -1.0 to .75", "!between", "-1.0", ".75",
-              "[]"),
-          new TestValues.GrammarTestItem("not 3 to 80.44", "!between", "3", "80.44", "[]"),
-          new TestValues.GrammarTestItem("<7 OR >80.44", "!between", "7", "80.44", "()"),
-          new TestValues.GrammarTestItem("<= 7 OR >80.44", "!between", "7", "80.44", "[)"),
-          new TestValues.GrammarTestItem(">=80.44  OR    <.1", "!between", "0.1", "80.44",
-              "(]"),
-          new TestValues.GrammarTestItem("NOT[2, 4]", "!between", "2", "4", "[]"),
-          new TestValues.GrammarTestItem("NOT [0.1,   -4)", "!between", "0.1", "-4", "[)"),
-          new TestValues.GrammarTestItem("NOT  (0.1,   -4]", "!between", "0.1", "-4",
-              "(]"),
-          new TestValues.GrammarTestItem("NOT(0.1, .11111)", "!between", "0.1", "0.11111",
-              "()"));
+      TestValues.GrammarTestItem.builder()
+          .add("1 to 5", "between", "1", "5", "[]")
+          .add("-1.0 to .75", "between", "-1.0", ".75", "[]")
+          .add(">7 AND <80.44", "between", "7", "80.44", "()")
+          .add(">= 7 AND <80.44", "between", "7", "80.44", "[)")
+          .add("<=80.44  AND    >.1", "between", "0.1", "80.44", "(]")
+          .add("[2, 4]", "between", "2", "4", "[]")
+          .add("[0.1,   -4)", "between", "0.1", "-4", "[)")
+          .add("(0.1,   -4]", "between", "0.1", "-4", "(]")
+          .add("(0.1, .11111)", "between", "0.1", "0.11111", "()")
+          .add("NOT 1 to 5", "!between", "1", "5", "[]")
+          .add("NOT -1.0 to .75", "!between", "-1.0", ".75", "[]")
+          .add("not 3 to 80.44", "!between", "3", "80.44", "[]")
+          .add("<7 OR >80.44", "!between", "7", "80.44", "()")
+          .add("<= 7 OR >80.44", "!between", "7", "80.44", "[)")
+          .add(">=80.44  OR    <.1", "!between", "0.1", "80.44", "(]")
+          .add("NOT[2, 4]", "!between", "2", "4", "[]")
+          .add("NOT [0.1,   -4)", "!between", "0.1", "-4", "[)")
+          .add("NOT  (0.1,   -4]", "!between", "0.1", "-4", "(]")
+          .add("NOT(0.1, .11111)", "!between", "0.1", "0.11111", "()")
+          .build();
 
   @Test void testBetween() {
     forEach(BETWEEN_CASES, testItem -> {
@@ -235,18 +219,18 @@ public class NumberTest {
   }
 
   static final List<TestValues.Triple> NOW_SUPPORTED_CASES =
-      ImmutableList.of(
+      TestValues.Triple.builder()
           // the following previously had no deserializer,
           // but are now supported
-          new TestValues.Triple("1 to",                   ">=",     "1"),
-          new TestValues.Triple("to -1",                  "<=",     "-1"),
-          new TestValues.Triple("to 0.1",                 "<=",     "0.1"),
-          new TestValues.Triple("not 1, not 2",           "!=",     "1,2"),
-          new TestValues.Triple("<> 1, <> 2",             "!=",     "1,2"),
-          new TestValues.Triple("!= 1, != 2",             "!=",     "1,2"),
-          new TestValues.Triple("1, not 2",               "!=",     "1,2"),
-          new TestValues.Triple(">1 AND <2 OR >3 AND <4", "between",
-              ">1 AND <2 OR >3 AND <4"));
+          .add("1 to",                   ">=",     "1")
+          .add("to -1",                  "<=",     "-1")
+          .add("to 0.1",                 "<=",     "0.1")
+          .add("not 1, not 2",           "!=",     "1,2")
+          .add("<> 1, <> 2",             "!=",     "1,2")
+          .add("!= 1, != 2",             "!=",     "1,2")
+          .add("1, not 2",               "!=",     "1,2")
+          .add(">1 AND <2 OR >3 AND <4", "between", ">1 AND <2 OR >3 AND <4")
+          .build();
 
   @Test void testNowSupportedExpressions() {
     forEach(NOW_SUPPORTED_CASES, c ->
@@ -254,26 +238,27 @@ public class NumberTest {
   }
 
   static final List<TestValues.Triple> UNSUPPORTED_CASES =
-      ImmutableList.of(
-          new TestValues.Triple("0.1.1.1", "matchesAdvanced",     "0.1.1.1"),
-          new TestValues.Triple("0.....1", "matchesAdvanced",     "0.....1"),
-          new TestValues.Triple("--1",     "matchesAdvanced",     "--1"),
-          new TestValues.Triple("foo",     "matchesAdvanced",     "foo"),
-          new TestValues.Triple("seventeen", "matchesAdvanced",     "seventeen"),
-          new TestValues.Triple("&,,,$%testContext.#,,,$,testContext.",
-              "matchesAdvanced",     "&,,,$%testContext.#,,,$,testContext."),
-          new TestValues.Triple("\\\\\\\\\\\\\\", "matchesAdvanced",
-              "\\\\\\\\\\\\\\"),
-          new TestValues.Triple("~`!testContext.#$%^*()-+=_{}[]|?",  "matchesAdvanced",
-              "~`!testContext.#$%^*()-+=_{}[]|?"),
-          new TestValues.Triple("<>,. ¡™£¢∞§¶•ªº–≠œ∑", "matchesAdvanced",
-              "<>,. ¡™£¢∞§¶•ªº–≠œ∑"),
-          new TestValues.Triple("´®†¥¨ˆøπ“‘åß∂ƒ©˙∆˚¬…æ", "matchesAdvanced",
-              "´®†¥¨ˆøπ“‘åß∂ƒ©˙∆˚¬…æ"),
-          new TestValues.Triple("Ω≈ç√∫˜µ≤≥÷", "matchesAdvanced", "Ω≈ç√∫˜µ≤≥÷"),
-          new TestValues.Triple("😻🌚", "matchesAdvanced", "😻🌚"),
-          new TestValues.Triple("^12345", "matchesAdvanced", "^12345"),
-          new TestValues.Triple("1234^, 567", "matchesAdvanced", "1234^, 567"));
+      TestValues.Triple.builder()
+          .add("0.1.1.1", "matchesAdvanced",     "0.1.1.1")
+          .add("0.....1", "matchesAdvanced",     "0.....1")
+          .add("--1",     "matchesAdvanced",     "--1")
+          .add("foo",     "matchesAdvanced",     "foo")
+          .add("seventeen", "matchesAdvanced",     "seventeen")
+          .add("&,,,$%testContext.#,,,$,testContext.",
+              "matchesAdvanced",     "&,,,$%testContext.#,,,$,testContext.")
+          .add("\\\\\\\\\\\\\\", "matchesAdvanced",
+              "\\\\\\\\\\\\\\")
+          .add("~`!testContext.#$%^*()-+=_{}[]|?",  "matchesAdvanced",
+              "~`!testContext.#$%^*()-+=_{}[]|?")
+          .add("<>,. ¡™£¢∞§¶•ªº–≠œ∑", "matchesAdvanced",
+              "<>,. ¡™£¢∞§¶•ªº–≠œ∑")
+          .add("´®†¥¨ˆøπ“‘åß∂ƒ©˙∆˚¬…æ", "matchesAdvanced",
+              "´®†¥¨ˆøπ“‘åß∂ƒ©˙∆˚¬…æ")
+          .add("Ω≈ç√∫˜µ≤≥÷", "matchesAdvanced", "Ω≈ç√∫˜µ≤≥÷")
+          .add("😻🌚", "matchesAdvanced", "😻🌚")
+          .add("^12345", "matchesAdvanced", "^12345")
+          .add("1234^, 567", "matchesAdvanced", "1234^, 567")
+          .build();
 
   @Test void testUnsupportedExpressions() {
     forEach(UNSUPPORTED_CASES, c ->

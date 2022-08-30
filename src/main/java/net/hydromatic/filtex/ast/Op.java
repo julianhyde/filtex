@@ -33,7 +33,8 @@ public enum Op {
   CLOSED_CLOSED("[]", "[", "]"),
   CLOSED_ABSENT(">=", "[", "inf)"),
   ABSENT_OPEN("<", "(-inf", ")"),
-  ABSENT_CLOSED("<=", "(-inf", "]");
+  ABSENT_CLOSED("<=", "(-inf", "]"),
+  MATCHES_ADVANCED("matchesAdvanced");
 
   public final String s;
   public final String left;

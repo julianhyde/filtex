@@ -274,6 +274,9 @@ AstNode interval(boolean is) : {
     if (right == null) {
       rightBound = Bound.ABSENT;
     }
+    if (left == null && right == null) {
+      throw new ParseException("unbounded interval");
+    }
     return ast.between(is, leftBound, rightBound, left, right);
   }
 }

@@ -17,14 +17,15 @@
 package net.hydromatic.filtex.ast;
 
 import com.google.common.collect.ImmutableList;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigDecimal;
-import java.util.Objects;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-/** Various sub-classes of AST nodes. */
+/** Various subclasses of AST nodes. */
 public class Ast {
   private Ast() {
   }
@@ -32,10 +33,10 @@ public class Ast {
   /** Literal. */
   @SuppressWarnings("rawtypes")
   public static class Comparison extends AstNode {
-    final boolean is;
-    public final Comparable value;
+    public final boolean is;
+    public final List<Comparable> value;
 
-    Comparison(boolean is, Op op, Comparable value) {
+    Comparison(boolean is, Op op, List<Comparable> value) {
       super(Pos.ZERO, op);
       this.is = is;
       this.value = value;
@@ -46,11 +47,17 @@ public class Ast {
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
-      return writer.appendLiteral(value);
+      String sep = "";
+      for (Comparable comparable : value) {
+        writer.append(sep);
+        writer.appendLiteral(comparable);
+        sep = ",";
+      }
+      return writer;
     }
 
     @Override public Asts.Model model() {
-      return new Asts.Model(is, op.s, value, null, null, null);
+      return new Asts.Model(id, is, op.s, value, null, null, null);
     }
   }
 
@@ -75,14 +82,14 @@ public class Ast {
     }
 
     @Override public Asts.Model model() {
-      return new Asts.Model(is, op.s, null, null, null, null);
+      return new Asts.Model(id, is, op.s, null, null, null, null);
     }
   }
 
   /** Call with one argument, optionally negated. */
   public static class Call1 extends AstNode {
-    final boolean is;
-    final AstNode node;
+    public final boolean is;
+    public final AstNode node;
 
     Call1(Op op, boolean is, AstNode node) {
       super(Pos.ZERO, op);
@@ -95,7 +102,7 @@ public class Ast {
     }
 
     @Override public Asts.Model model() {
-      return new Asts.Model(is, op.s, null, "", null, null);
+      return new Asts.Model(id, is, op.s, null, "", null, null);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -111,9 +118,9 @@ public class Ast {
   /** Call with two arguments, optionally negated. */
   public static class Call2 extends AstNode {
     public final AstNode left;
-    public final AstNode right;
+    public AstNode right;
 
-    Call2(Op op, AstNode left, AstNode right) {
+    public Call2(Op op, AstNode left, AstNode right) {
       super(Pos.ZERO, op);
       this.left = left;
       this.right = right;
@@ -128,7 +135,7 @@ public class Ast {
     }
 
     @Override public Asts.Model model() {
-      return new Asts.Model(true, op.s,
+      return new Asts.Model(id, true, op.s,
           ImmutableList.of(left.toString(), right.toString()),
           null, null, null);
     }
@@ -140,7 +147,8 @@ public class Ast {
     public final BigDecimal left;
     public final BigDecimal right;
 
-    public Range(Op op, boolean is, BigDecimal left, BigDecimal right) {
+    public Range(Op op, String id, boolean is, BigDecimal left,
+        BigDecimal right) {
       super(Pos.ZERO, op);
       this.is = is;
       this.left = requireNonNull(left);
@@ -176,13 +184,41 @@ public class Ast {
       default:
         type = "between";
       }
-      final Object value =
+      final Iterable<Comparable> value =
           left != null && right != null ? ImmutableList.of(left, right)
-              : left != null ? left
-                  : right;
-      return new Asts.Model(is, type, value, op.s,
+              : left != null ? ImmutableList.of(left)
+                  : ImmutableList.of(right);
+      return new Asts.Model(id, is, type, value, op.s,
           left == null ? "" : left.toString(),
           right == null ? "" : right.toString());
+    }
+  }
+
+  /** MatchesAdvanced. */
+  @SuppressWarnings("rawtypes")
+  public static class MatchesAdvanced extends AstNode {
+    public final String expression;
+
+    MatchesAdvanced(String expression) {
+      super(Pos.ZERO, Op.MATCHES_ADVANCED);
+      this.expression = expression;
+    }
+
+    @Override public String expression() {
+      return expression;
+    }
+
+    @Override public void accept(Visitor visitor, @Nullable AstNode parent) {
+      visitor.visit(this, parent);
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      return writer.append(expression);
+    }
+
+    @Override public Asts.Model model() {
+      return new Asts.Model(id, true, op.s, ImmutableList.of(expression), null,
+          null, null);
     }
   }
 }
