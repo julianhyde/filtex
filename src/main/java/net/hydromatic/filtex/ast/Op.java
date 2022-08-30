@@ -34,7 +34,14 @@ public enum Op {
   CLOSED_ABSENT(">=", "[", "inf)"),
   ABSENT_OPEN("<", "(-inf", ")"),
   ABSENT_CLOSED("<=", "(-inf", "]"),
-  MATCHES_ADVANCED("matchesAdvanced");
+  MATCHES_ADVANCED("matchesAdvanced"),
+
+  // location
+
+  ANYWHERE("anywhere"),
+  BOX("box"),
+  CIRCLE("circle"),
+  POINT("location");
 
   public final String s;
   public final String left;

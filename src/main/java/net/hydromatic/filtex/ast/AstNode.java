@@ -50,6 +50,13 @@ public abstract class AstNode {
     return null;
   }
 
+  public @Nullable String summary() {
+    return null;
+  }
+
+  public String type() {
+    return op.s;
+  }
 }
 
 // End AstNode.java

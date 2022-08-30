@@ -21,9 +21,11 @@ import net.hydromatic.filtex.ast.Asts;
 
 import com.google.common.collect.ImmutableList;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 import static net.hydromatic.filtex.Filtex.parseFilterExpression;
@@ -34,7 +36,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
 /** Tests number expressions. */
-public class NumberTest {
+public class LocationTest {
   /** Runs a set of tests. */
   <E> void forEach(Iterable<E> iterable, Consumer<E> consumer) {
     for (E e : iterable) {
@@ -46,21 +48,21 @@ public class NumberTest {
     }
   }
 
-  void checkNumericItem(String expression, String type) {
+  void checkLocationItem(String expression, String expectedSummary,
+      @Nullable String textInput) {
     final AstNode ast =
-        parseFilterExpression(TypeFamily.NUMBER, expression);
-    final List<Asts.Model> list = Asts.treeToList(ast);
-    final Asts.Model item = list.get(0);
-    String itemType = item.type;
-    if (!type.equals("matchesAdvanced")) {
-      itemType = convertTypeToOption(item.is, item.type);
+        parseFilterExpression(TypeFamily.LOCATION, expression);
+    String summary =
+        Filtex.summary(TypeFamily.LOCATION, expression, Locale.ENGLISH);
+    assertThat(summary, is(expectedSummary));
+    if (textInput != null) {
+      assertThat(summary, is(textInput));
     }
-    assertThat(itemType, is(type));
   }
 
-  @Test void testNumberGrammarCanParse() {
-    forEach(TestValues.NUMBER_EXPRESSION_TEST_ITEMS,
-        testItem -> checkNumericItem(testItem.expression, testItem.type));
+  @Test void testLocationGrammarCanParse() {
+    forEach(TestValues.LOCATION_EXPRESSION_TEST_ITEMS, item ->
+        checkLocationItem(item.expression, item.type, item.textInput));
   }
 
   /** Expressions that should fail. */

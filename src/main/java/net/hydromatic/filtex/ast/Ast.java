@@ -30,7 +30,77 @@ public class Ast {
   private Ast() {
   }
 
-  /** Literal. */
+  /** Geographical box. */
+  public static class Point extends AstNode {
+    public final Location location;
+
+    protected Point(Location location) {
+      super(Pos.ZERO, Op.POINT);
+      this.location = location;
+    }
+
+    @Override
+    public AstWriter unparse(AstWriter writer) {
+      return null;
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+    }
+
+    @Override public Asts.Model model() {
+      return null;
+    }
+  }
+
+  /** Geographical box. */
+  public static class Box extends AstNode {
+    public final Location from;
+    public final Location to;
+
+    protected Box(Location from, Location to) {
+      super(Pos.ZERO, Op.BOX);
+      this.from = from;
+      this.to = to;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      return null;
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+    }
+
+    @Override public Asts.Model model() {
+      return null;
+    }
+  }
+
+  /** Geographical circle. */
+  public static class Circle extends AstNode {
+    public final BigDecimal distance;
+    public final Unit unit;
+    public final Location location;
+
+    Circle(BigDecimal distance, Unit unit, Location location) {
+      super(Pos.ZERO, Op.CIRCLE);
+      this.distance = distance;
+      this.unit = unit;
+      this.location = location;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      return null;
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+    }
+
+    @Override public Asts.Model model() {
+      return null;
+    }
+  }
+
+  /** Numeric comparison. */
   @SuppressWarnings("rawtypes")
   public static class Comparison extends AstNode {
     public final boolean is;
@@ -172,23 +242,24 @@ public class Ast {
       visitor.visit(this, parent);
     }
 
-    @Override public Asts.Model model() {
-      final String type;
+    @Override public String type() {
       switch (op) {
       case ABSENT_CLOSED:
       case ABSENT_OPEN:
       case CLOSED_ABSENT:
       case OPEN_ABSENT:
-        type = op.s;
-        break;
+        return op.s;
       default:
-        type = "between";
+        return "between";
       }
+    }
+
+    @Override public Asts.Model model() {
       final Iterable<Comparable> value =
           left != null && right != null ? ImmutableList.of(left, right)
               : left != null ? ImmutableList.of(left)
                   : ImmutableList.of(right);
-      return new Asts.Model(id, is, type, value, op.s,
+      return new Asts.Model(id, is, type(), value, op.s,
           left == null ? "" : left.toString(),
           right == null ? "" : right.toString());
     }

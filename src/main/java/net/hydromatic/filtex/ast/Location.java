@@ -14,27 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.hydromatic.filtex;
+package net.hydromatic.filtex.ast;
 
-import net.hydromatic.filtex.ast.AstNode;
-import net.hydromatic.filtex.ast.Summary;
+import java.math.BigDecimal;
 
-/**
- * Is the filter expression for number, date, or string values?
- */
-public enum TypeFamily {
-  LOCATION,
-  NUMBER,
-  STRING;
+/** Geographic location. */
+public class Location {
+  public final BigDecimal latitude;
+  public final BigDecimal longitude;
 
-  public String describe(AstNode node) {
-    switch (this) {
-    case LOCATION:
-      return Summary.describeLocation(node);
-    default:
-      throw new UnsupportedOperationException("unexpected: " + this);
-    }
+  /** Creates a location. */
+  public Location(BigDecimal latitude, BigDecimal longitude) {
+    this.latitude = latitude;
+    this.longitude = longitude;
+  }
+
+  @Override public String toString() {
+    return latitude + " " + longitude;
   }
 }
 
-// End TypeFamily.java
+// End Location.java

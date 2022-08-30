@@ -14,27 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.hydromatic.filtex;
+package net.hydromatic.filtex.ast;
 
-import net.hydromatic.filtex.ast.AstNode;
-import net.hydromatic.filtex.ast.Summary;
-
-/**
- * Is the filter expression for number, date, or string values?
- */
-public enum TypeFamily {
-  LOCATION,
-  NUMBER,
-  STRING;
-
-  public String describe(AstNode node) {
-    switch (this) {
-    case LOCATION:
-      return Summary.describeLocation(node);
-    default:
-      throw new UnsupportedOperationException("unexpected: " + this);
-    }
-  }
+/** Unit of distance. */
+public enum Unit {
+  METER,
+  FOOT,
+  KILOMETER,
+  MILE;
 }
 
-// End TypeFamily.java
+// End Unit.java

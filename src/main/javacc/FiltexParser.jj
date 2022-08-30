@@ -31,12 +31,14 @@ import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.Ast.*;
 import net.hydromatic.filtex.ast.AstNode;
 import net.hydromatic.filtex.ast.Bound;
+import net.hydromatic.filtex.ast.Location;
 import net.hydromatic.filtex.ast.Op;
 import net.hydromatic.filtex.ast.Pos;
+import net.hydromatic.filtex.ast.Unit;
 
 import com.google.common.collect.ImmutableList;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import net.hydromatic.filtex.ast.Unit;import org.checkerframework.checker.nullness.qual.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +88,14 @@ void debug_message1()
   LOGGER.info("{} , {}", getToken(0).image, getToken(1).image);
 }
 
+/** Parses a location filter expression followed by end-of-file. */
+AstNode locationExpressionEof() : {
+  final AstNode node;
+}
+{
+  node = locationExpression() <EOF> { return node; }
+}
+
 /** Parses a numeric filter expression followed by end-of-file. */
 AstNode numericExpressionEof() : {
   final AstNode node;
@@ -94,6 +104,93 @@ AstNode numericExpressionEof() : {
   node = numericExpression() <EOF> { return node; }
 }
 
+// == Location ===============================================================
+
+/** Parses a location expression.
+ *
+ * <p>Accepts expressions like:
+ * "{@code 36.97, -122.03}",
+ * "{@code 40 miles from 36.97, -122.03}",
+ * "{@code inside box from 72.33, -173.14 to 14.39, -61.70}"
+ */
+AstNode locationExpression() : {
+  final AstNode node;
+  final Location location;
+}
+{
+  LOOKAHEAD(2) // distinguish location (number comma) from circle (number unit)
+  node = circle() { return node; }
+| location = location() { return ast.point(location); }
+| node = box() { return node; }
+| node = userAttribute() { return node; }
+| node = nulls() { return node; }
+| node = anywhere() { return node; }
+}
+
+AstNode anywhere() : {}
+{
+  { return ast.anywhere(); }
+}
+
+AstNode nulls() : {}
+{
+  <NULL> { return ast.isNull(true); }
+| <NOT> <NULL> { return ast.isNull(false); }
+| "-" <NULL> { return ast.isNull(false); }
+}
+
+AstNode box() : {
+  final Location from;
+  final Location to;
+}
+{
+  <INSIDE> <BOX> <FROM> from = location() <TO> to = location() {
+    return ast.box(from, to);
+  }
+}
+
+AstNode circle() : {
+  final BigDecimal distance;
+  final Unit unit;
+  final Location location;
+}
+{
+  distance = number()
+  unit = unit() <FROM> location = location() {
+    if (distance.signum() < 0) {
+      throw new ParseException("expected a positive value");
+    }
+    return ast.circle(distance, unit, location);
+  }
+}
+
+Location location() : {
+  final BigDecimal latitude;
+  final BigDecimal longitude;
+}
+{
+  latitude = number() <COMMA> longitude = number() {
+    if (latitude.compareTo(BigDecimal.valueOf(-90)) < 0
+        || latitude.compareTo(BigDecimal.valueOf(90)) > 0) {
+      throw new ParseException("expected a number between -90 and 90");
+    }
+    if (longitude.compareTo(BigDecimal.valueOf(-180)) < 0
+        || longitude.compareTo(BigDecimal.valueOf(180)) > 0) {
+      throw new ParseException("expected a number between -180 and 180");
+    }
+    return new Location(latitude, longitude);
+  }
+}
+
+Unit unit() : {}
+{
+  <METERS> { return Unit.METER; }
+| <FEET> { return Unit.FOOT; }
+| <KILOMETERS> { return Unit.KILOMETER; }
+| <MILES> { return Unit.MILE; }
+}
+
+// == Number =================================================================
 
 /** Parses a numeric expression.
  *
@@ -324,8 +421,15 @@ BigDecimal number() : {}
 {
   < DOUBLE_QUOTE: "\"" >
 | < CHAR_LITERAL: ("#") <QUOTED_STRING> >
+| < BOX: "BOX" >
+| < FROM: "FROM" >
+| < INSIDE: "INSIDE" >
 | < NOT: "NOT" >
 | < AND: "AND" >
+| < FEET: "FEET" >
+| < METERS: "METERS" >
+| < MILES: "MILES" >
+| < KILOMETERS: "KILOMETERS" >
 | < OR: "OR" >
 | < BANG_EQ: "!=" >
 | < LT_GT: "<>" >

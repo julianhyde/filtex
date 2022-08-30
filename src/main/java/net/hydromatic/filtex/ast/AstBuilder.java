@@ -32,6 +32,26 @@ public enum AstBuilder {
   // CHECKSTYLE: IGNORE 1
   ast;
 
+  /** Creates an anywhere location. */
+  public AstNode anywhere() {
+    return new Ast.Call0(Op.ANYWHERE, true);
+  }
+
+  /** Creates a point geographical region. */
+  public AstNode point(Location location) {
+    return new Ast.Point(location);
+  }
+
+  /** Creates a box-shaped geographical region. */
+  public AstNode box(Location from, Location to) {
+    return new Ast.Box(from, to);
+  }
+
+  /** Creates a circular geographical region. */
+  public AstNode circle(BigDecimal distance, Unit unit, Location location) {
+    return new Ast.Circle(distance, unit, location);
+  }
+
   /** Creates a comparison. */
   @SuppressWarnings("rawtypes")
   public Ast.Comparison comparison(boolean is, Op op, Comparable value) {

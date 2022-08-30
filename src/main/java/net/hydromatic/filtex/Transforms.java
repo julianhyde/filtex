@@ -165,6 +165,17 @@ public class Transforms {
    *   <li>combine the value array on nodes of type '='</li>
    * </ul>
    */
+  public static AstNode locationTransform(AstNode root) {
+    return root;
+  }
+
+  /**
+   * Applies the following transformations on the number AST:
+   *
+   * <ul>
+   *   <li>combine the value array on nodes of type '='</li>
+   * </ul>
+   */
   public static AstNode numberTransform(AstNode root) {
     // workaround for inconsistency in number filter and allow merging of nodes
     // with different 'is' value: 1, not 2 -> becomes

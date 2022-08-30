@@ -28,6 +28,80 @@ public class TestValues {
   private TestValues() {}
 
   /** From
+   * <a href="https://github.com/looker-open-source/components/blob/main/packages/filter-expressions/src/grammars/location_grammar.spec.ts">
+   * location_grammar.spec.ts</a>. */
+  public static final List<Triple> LOCATION_EXPRESSION_TEST_ITEMS =
+      Triple.builder()
+          .add("36.97, -122.03", "36.97, -122.03",
+              "\"lat\": 36.97,\n"
+                  + "  \"left\": undefined,\n"
+                  + "  \"lon\": -122.03,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"location\"")
+          .add("-36.97, 122.03", "-36.97, 122.03",
+              "\"lat\": -36.97,\n"
+                  + "  \"left\": undefined,\n"
+                  + "  \"lon\": 122.03,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"location\",")
+          .add("-36.97, -122.03", "-36.97, -122.03",
+              "lat: -36.97,\n"
+                  + "  \"left\": undefined,\n"
+                  + "  \"lon\": -122.03,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"location\"")
+          .add("40 miles from -36.97, -122.03", "40 miles from -36.97, -122.03",
+              "\"distance\": 40,\n"
+                  + "  \"id\": 1,\n"
+                  + "  \"lat\": -36.97,\n"
+                  + "  \"left\": undefined,\n"
+                  + "  \"lon\": -122.03,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"circle\",\n"
+                  + "  \"unit\": \"miles\"")
+          .add("40 miles from 36.97, -122.03", "40 miles from 36.97, -122.03",
+              "\"distance\": 40,\n"
+                  + "  \"id\": 1,\n"
+                  + "  \"lat\": 36.97,\n"
+                  + "  \"left\": undefined,\n"
+                  + "  \"lon\": -122.03,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"circle\",\n"
+                  + "  \"unit\": \"miles\"")
+          .add("100 miles from 36.97, -122.03", "100 miles from 36.97, -122.03",
+              "\"distance\": 100,\n"
+                  + "  \"id\": 1,\n"
+                  + "  \"lat\": 36.97,\n"
+                  + "  \"left\": undefined,\n"
+                  + "  \"lon\": -122.03,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"circle\",\n"
+                  + "  \"unit\": \"miles\"")
+          .add("inside box from 72.33, -173.14 to 14.39, -61.70",
+              "72.3°N, 173.1°W to 14.4°N, 61.7°W",
+              "\"lat\": 72.33,\n"
+                  + "  \"lat1\": 14.39,\n"
+                  + "  \"left\": undefined,\n"
+                  + "  \"lon\": -173.14,\n"
+                  + "  \"lon1\": -61.7,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"box\"")
+          .add("", "is anywhere", null)
+          .add("NOT NULL", "is not null",
+              "\"left\": undefined,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"notnull\"")
+          .add("-NULL", "is not null",
+              "\"left\": undefined,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"notnull\"")
+          .add("NULL", "is null",
+              "\"left\": undefined,\n"
+                  + "  \"right\": undefined,\n"
+                  + "  \"type\": \"null\"")
+          .build();
+
+  /** From
    * <a href="https://github.com/looker-open-source/components/blob/main/packages/filter-expressions/src/grammars/number_grammar_test_expressions.ts">
    * number_grammar_test_expressions.ts</a>. */
   public static final List<GrammarTestItem> NUMBER_EXPRESSION_TEST_ITEMS =

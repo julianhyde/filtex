@@ -18,9 +18,12 @@ package net.hydromatic.filtex;
 
 import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.AstNode;
+import net.hydromatic.filtex.ast.Summary;
 import net.hydromatic.filtex.parse.FiltexParserImpl;
 import net.hydromatic.filtex.parse.ParseException;
 import net.hydromatic.filtex.parse.TokenMgrError;
+
+import com.google.common.collect.ImmutableList;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -90,9 +93,14 @@ public class Filtex {
     FiltexParserImpl parser =
         new FiltexParserImpl(new StringReader(expression));
     try {
+      final AstNode node;
       switch (typeFamily) {
+      case LOCATION:
+        node = parser.locationExpressionEof();
+        return Transforms.locationTransform(node);
+
       case NUMBER:
-        AstNode node = parser.numericExpressionEof();
+        node = parser.numericExpressionEof();
         return Transforms.numberTransform(node);
 
       default:
@@ -131,7 +139,7 @@ public class Filtex {
    * <p>returns {@code "is in range [0, 20] or is > 30"}. */
   public static String summary(TypeFamily typeFamily, String s,
       Locale locale) {
-    throw new UnsupportedOperationException();
+    return Summary.summary(typeFamily, s, ImmutableList.of(), null, true);
   }
 
   /**
