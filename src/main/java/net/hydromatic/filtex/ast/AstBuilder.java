@@ -89,6 +89,11 @@ public enum AstBuilder {
     return new Ast.Call0(Op.NULL, is);
   }
 
+  /** Creates a term representing "not null" (for location). */
+  public AstNode isNotNull() {
+    return new Ast.Call0(Op.NOTNULL, true);
+  }
+
   /** Creates a term representing a range, such as "{@code [0, 10)}", or a
    * comparison, such as "{@code > 5}". */
   public AstNode between(boolean is, Bound leftBound, Bound rightBound,

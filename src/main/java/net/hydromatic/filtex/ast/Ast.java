@@ -47,10 +47,6 @@ public class Ast {
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
     }
-
-    @Override public Asts.Model model() {
-      return null;
-    }
   }
 
   /** Geographical box. */
@@ -87,10 +83,6 @@ public class Ast {
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
     }
-
-    @Override public Asts.Model model() {
-      return null;
-    }
   }
 
   /** Geographical circle. */
@@ -115,10 +107,6 @@ public class Ast {
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
     }
-
-    @Override public Asts.Model model() {
-      return null;
-    }
   }
 
   /** Numeric comparison. */
@@ -133,22 +121,20 @@ public class Ast {
       this.value = value;
     }
 
+    @Override public boolean is() {
+      return is;
+    }
+
+    @Override public Iterable<Comparable> value() {
+      return value;
+    }
+
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
       visitor.visit(this, parent);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
-      String sep = "";
-      for (Comparable comparable : value) {
-        writer.append(sep);
-        writer.appendLiteral(comparable);
-        sep = ",";
-      }
-      return writer;
-    }
-
-    @Override public Asts.Model model() {
-      return new Asts.Model(id, is, op.s, value, null, null, null);
+      return writer.append(valueString());
     }
   }
 
@@ -161,35 +147,26 @@ public class Ast {
       this.is = is;
     }
 
-    @Override public String type() {
-      switch (op) {
-      case NULL:
-        return is ? "null" : "notnull";
-      default:
-        return super.type();
-      }
+    @Override public boolean is() {
+      return is;
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
       switch (op) {
       case NULL:
         return writer.append(is ? "is null" : "is not null");
+      case NOTNULL:
+        return writer.append("is not null");
       default:
         if (!is) {
           writer.append("not ");
         }
         return writer.append(op.s);
       }
-
-
     }
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
       visitor.visit(this, parent);
-    }
-
-    @Override public Asts.Model model() {
-      return new Asts.Model(id, is, op.s, null, null, null, null);
     }
   }
 
@@ -206,10 +183,6 @@ public class Ast {
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
       visitor.visit(this, parent);
-    }
-
-    @Override public Asts.Model model() {
-      return new Asts.Model(id, is, op.s, null, "", null, null);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -239,12 +212,6 @@ public class Ast {
 
     @Override public void accept(AstVisitor visitor, AstNode parent) {
       visitor.visit(this, parent);
-    }
-
-    @Override public Asts.Model model() {
-      return new Asts.Model(id, true, op.s,
-          ImmutableList.of(left.toString(), right.toString()),
-          null, null, null);
     }
   }
 
@@ -291,14 +258,28 @@ public class Ast {
       }
     }
 
-    @Override public Asts.Model model() {
-      final Iterable<Comparable> value =
-          left != null && right != null ? ImmutableList.of(left, right)
-              : left != null ? ImmutableList.of(left)
-                  : ImmutableList.of(right);
-      return new Asts.Model(id, is, type(), value, op.s,
-          left == null ? "" : left.toString(),
-          right == null ? "" : right.toString());
+    @Override public boolean is() {
+      return is;
+    }
+
+    @Override public Iterable<Comparable> value() {
+      return left != null && right != null
+          ? ImmutableList.of(left, right)
+          : left != null
+              ? ImmutableList.of(left)
+              : ImmutableList.of(right);
+    }
+
+    @Override public String low() {
+      return left == null ? "" : left.toString();
+    }
+
+    @Override public String high() {
+      return right == null ? "" : right.toString();
+    }
+
+    @Override public String bounds() {
+      return op.s;
     }
   }
 
@@ -322,11 +303,6 @@ public class Ast {
 
     @Override public AstWriter unparse(AstWriter writer) {
       return writer.append(expression);
-    }
-
-    @Override public Asts.Model model() {
-      return new Asts.Model(id, true, op.s, ImmutableList.of(expression), null,
-          null, null);
     }
   }
 }

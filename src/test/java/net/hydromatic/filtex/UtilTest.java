@@ -39,9 +39,9 @@ public class UtilTest {
   @Test void testTreeToList() {
     // id: 1, type: '=', value: [1]
     AstNode root = ast.numberLiteral(true, BigDecimal.ONE);
-    List<Asts.Model> list = Asts.treeToList(root);
+    List<AstNode> list = Asts.treeToList(root);
     assertThat(list.size(), is(1));
-    assertThat(list.get(0), is(root.model()));
+    assertThat(list.get(0), is(root));
   }
 
   // Tree list only holds value nodes
@@ -52,11 +52,11 @@ public class UtilTest {
                 ast.numberLiteral(true, BigDecimal.ONE),
                 ast.between(true, Bound.OPEN, Bound.ABSENT,
                     BigDecimal.valueOf(5), null)));
-    final List<Asts.Model> list = Asts.treeToList(root);
+    final List<AstNode> list = Asts.treeToList(root);
     assertThat(list.size(), is(2));
     final Ast.Call2 call2 = (Ast.Call2) root;
-    assertThat(list.get(0), is(call2.left.model()));
-    assertThat(list.get(1), is(call2.right.model()));
+    assertThat(list.get(0), is(call2.left));
+    assertThat(list.get(1), is(call2.right));
   }
 
   // Tree list is sorted by the 'is' value of nodes
@@ -67,12 +67,12 @@ public class UtilTest {
                 ast.numberLiteral(false, BigDecimal.ONE),
                 ast.between(true, Bound.OPEN, Bound.ABSENT,
                     BigDecimal.valueOf(5), null)));
-    final List<Asts.Model> list = Asts.treeToList(root);
+    final List<AstNode> list = Asts.treeToList(root);
     assertThat(list.size(), is(2));
     final Ast.Call2 call2 = (Ast.Call2) root;
     // right becomes before left. It all depends on what the value of 'is' is
-    assertThat(list.get(0), is(call2.right.model()));
-    assertThat(list.get(1), is(call2.left.model()));
+    assertThat(list.get(0), is(call2.right));
+    assertThat(list.get(1), is(call2.left));
   }
 }
 

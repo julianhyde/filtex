@@ -135,8 +135,8 @@ AstNode anywhere() : {}
 AstNode nulls() : {}
 {
   <NULL> { return ast.isNull(true); }
-| <NOT> <NULL> { return ast.isNull(false); }
-| "-" <NULL> { return ast.isNull(false); }
+| <NOT> <NULL> { return ast.isNotNull(); }
+| "-" <NULL> { return ast.isNotNull(); }
 }
 
 AstNode box() : {

@@ -38,11 +38,11 @@ public class Transforms {
   /** Traverses ast and returns the count of 'not' nodes ('is' value set to
    * false). */
   static int countNots(AstNode root) {
-    class CountingConsumer implements Consumer<Asts.Model> {
+    class CountingConsumer implements Consumer<AstNode> {
       private int count = 0;
 
-      @Override public void accept(Asts.Model model) {
-        if (!model.is) {
+      @Override public void accept(AstNode node) {
+        if (!node.is()) {
           ++count;
         }
       }
@@ -58,8 +58,8 @@ public class Transforms {
   static AstNode removeDuplicateNotNodes(AstNode root) {
     final AstNode workingRoot = Asts.applyId(root);
     // get the andClauses - "is not" nodes from the ast
-    final List<Asts.Model> andClauses =
-        Asts.treeToList(workingRoot).stream().filter(model -> !model.is)
+    final List<AstNode> andClauses =
+        Asts.treeToList(workingRoot).stream().filter(model -> !model.is())
             .collect(Collectors.toList());
     // we only care if there are two andClauses with the same expression
     return andClauses.size() == 2
@@ -94,7 +94,7 @@ public class Transforms {
         && right.left != null
         && left.op == right.left.op
         && left.op == compareType
-        && (left.model().is == right.left.model().is || allowDifferentIsValue);
+        && (left.is() == right.left.is() || allowDifferentIsValue);
   }
 
   /** Returns whether the left && right children of node are of the same type
@@ -106,7 +106,7 @@ public class Transforms {
         && right != null
         && left.op == right.op
         && left.op == compareType
-        && (left.model().is == right.is || allowDifferentIsValue);
+        && (left.is() == right.is() || allowDifferentIsValue);
   }
 
   /** Traverses AST and merges nodes of the same multi value type. */

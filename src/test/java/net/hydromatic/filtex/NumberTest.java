@@ -38,11 +38,11 @@ public class NumberTest {
   void checkNumericItem(String expression, String type) {
     final AstNode ast =
         parseFilterExpression(TypeFamily.NUMBER, expression);
-    final List<Asts.Model> list = Asts.treeToList(ast);
-    final Asts.Model item = list.get(0);
-    String itemType = item.type;
+    final List<AstNode> list = Asts.treeToList(ast);
+    final AstNode item = list.get(0);
+    String itemType = item.type();
     if (!type.equals("matchesAdvanced")) {
-      itemType = convertTypeToOption(item.is, item.type);
+      itemType = convertTypeToOption(item.is(), item.type());
     }
     assertThat(itemType, is(type));
   }
@@ -60,7 +60,7 @@ public class NumberTest {
     forEach(FAIL_EXPRESSIONS, expression -> {
       final AstNode ast =
           parseFilterExpression(TypeFamily.NUMBER, expression);
-      assertThat(ast.model().type, is("matchesAdvanced"));
+      assertThat(ast.type(), is("matchesAdvanced"));
       assertThat(ast.expression(), is(expression));
     });
   }
@@ -115,24 +115,12 @@ public class NumberTest {
           .build();
 
   void checkNumeric(String expression, String type, String textInput) {
-    if (expression.equals("not 1, not 2")) {
-      assert textInput.equals("1,2");
-//      textInput = "1"; // FIXME
-    }
-    if (expression.equals("<> 1, <> 2")) {
-      assert textInput.equals("1,2");
-//      textInput = "1"; // FIXME
-    }
-    if (expression.equals("!= 1, != 2")) {
-      assert textInput.equals("1,2");
-//      textInput = "1"; // FIXME
-    }
     final AstNode ast = parseFilterExpression(TypeFamily.NUMBER, expression);
-    final List<Asts.Model> list = Asts.treeToList(ast);
-    final Asts.Model item = list.get(0);
-    String itemType = item.type;
+    final List<AstNode> list = Asts.treeToList(ast);
+    final AstNode item = list.get(0);
+    String itemType = item.type();
     if (!type.equals("matchesAdvanced")) {
-      itemType = convertTypeToOption(item.is, item.type);
+      itemType = convertTypeToOption(item.is(), item.type());
     }
     assertThat(itemType, is(type));
     if (!type.equals("matchesAdvanced")
@@ -159,10 +147,9 @@ public class NumberTest {
 
   void checkNull(String expression, String type) {
     final AstNode ast = parseFilterExpression(TypeFamily.NUMBER, expression);
-    Asts.Model model = ast.model();
-    final String itemType = convertTypeToOption(model.is, model.type);
+    final String itemType = convertTypeToOption(ast.is(), ast.type());
     assertThat(itemType, is(type));
-    assertThat(model.value, nullValue());
+    assertThat(ast.value(), nullValue());
   }
 
   @Test void testNullValuesNumberTests() {
@@ -196,12 +183,11 @@ public class NumberTest {
     forEach(BETWEEN_CASES, testItem -> {
       final AstNode ast =
           parseFilterExpression(TypeFamily.NUMBER, testItem.expression);
-      Asts.Model model = ast.model();
-      final String itemType = convertTypeToOption(model.is, model.type);
+      final String itemType = convertTypeToOption(ast.is(), ast.type());
       assertThat(itemType, is(testItem.type));
-      assertThat(model.low, is(testItem.low));
-      assertThat(model.high, is(testItem.high));
-      assertThat(model.bounds, is(testItem.bounds));
+      assertThat(ast.low(), is(testItem.low));
+      assertThat(ast.high(), is(testItem.high));
+      assertThat(ast.bounds(), is(testItem.bounds));
     });
   }
 

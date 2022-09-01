@@ -20,11 +20,9 @@ import com.google.common.collect.ImmutableList;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -50,61 +48,52 @@ public class Asts {
    * <a href="https://github.com/looker-open-source/components/blob/main/packages/filter-expressions/src/utils/tree/tree_to_list.ts">
    * tree_to_list.ts</a>
    */
-  public static List<Model> treeToList(AstNode root) {
-    final List<Model> orItems = new ArrayList<>();
-    final List<Model> andItems = new ArrayList<>();
+  public static List<AstNode> treeToList(AstNode root) {
+    final List<AstNode> orItems = new ArrayList<>();
+    final List<AstNode> andItems = new ArrayList<>();
     final AstVisitor visitor =
         new AstVisitorImpl() {
           @Override public void infix(Ast.Call2 call2,
               @Nullable AstNode parent) {
             if (call2.op != Op.COMMA) {
-              Model model = call2.model();
-              (model.is ? orItems : andItems).add(model);
+              (call2.is() ? orItems : andItems).add(call2);
             }
           }
 
           @Override public void visit(Ast.Call0 call0,
               @Nullable AstNode parent) {
-            Model model = call0.model();
-            (model.is ? orItems : andItems).add(model);
+            (call0.is() ? orItems : andItems).add(call0);
           }
 
           @Override public void visit(Ast.MatchesAdvanced matchesAdvanced,
               @Nullable AstNode parent) {
-            Model model = matchesAdvanced.model();
-            (matchesAdvanced.is() ? orItems : andItems).add(model);
+            (matchesAdvanced.is() ? orItems : andItems).add(matchesAdvanced);
           }
 
           @Override public void visit(Ast.Comparison literal,
               @Nullable AstNode parent) {
-            final Model model = literal.model();
-            (model.is ? orItems : andItems).add(model);
+            (literal.is() ? orItems : andItems).add(literal);
           }
 
           @Override public void visit(Ast.Range range,
               @Nullable AstNode parent) {
-            List<Model> list = range.is ? orItems : andItems;
+            List<AstNode> list = range.is ? orItems : andItems;
             if (range.left != null && range.right != null) {
-              list.add(range.model());
+              list.add(range);
             } else if (range.left != null) {
               Op op = range.op.containsLowerBound() ? Op.GE : Op.GT;
               AstNode comparison = ast.comparison(true, op, range.left);
-              list.add(comparison.model());
+              list.add(comparison);
             } else if (range.right != null) {
               Op op = range.op.containsUpperBound() ? Op.LE : Op.LT;
               AstNode comparison = ast.comparison(true, op, range.right);
-              list.add(comparison.model());
-              list.add(model(range.right));
+              list.add(comparison);
+              // TODO list.add(model(range.right));
             }
-          }
-
-          private Model model(BigDecimal number) {
-            return new Model(null, true, "number",
-                ImmutableList.of(number.toString()), null, null, null);
           }
         };
     root.accept(visitor, null);
-    return ImmutableList.<Model>builder()
+    return ImmutableList.<AstNode>builder()
         .addAll(orItems)
         .addAll(andItems)
         .build();
@@ -146,38 +135,38 @@ public class Asts {
     }
   }
 
-  /** Walks over a tree, applying a consumer to the model of each node. */
-  public static void traverse(AstNode root, Consumer<Model> consumer) {
+  /** Walks over a tree, applying a consumer to each node. */
+  public static void traverse(AstNode root, Consumer<AstNode> consumer) {
     AstVisitorImpl visitor = new AstVisitorImpl() {
       @Override public void visit(Ast.Call2 call2, @Nullable AstNode parent) {
-        consumer.accept(call2.model());
+        consumer.accept(call2);
         super.visit(call2, parent);
       }
 
       @Override public void visit(Ast.MatchesAdvanced matchesAdvanced,
           @Nullable AstNode parent) {
-        consumer.accept(matchesAdvanced.model());
+        consumer.accept(matchesAdvanced);
         super.visit(matchesAdvanced, parent);
       }
 
       @Override public void visit(Ast.Call1 call1, @Nullable AstNode parent) {
-        consumer.accept(call1.model());
+        consumer.accept(call1);
         super.visit(call1, parent);
       }
 
       @Override public void visit(Ast.Call0 call0, @Nullable AstNode parent) {
-        consumer.accept(call0.model());
+        consumer.accept(call0);
         super.visit(call0, parent);
       }
 
       @Override public void visit(Ast.Comparison literal,
           @Nullable AstNode parent) {
-        consumer.accept(literal.model());
+        consumer.accept(literal);
         super.visit(literal, parent);
       }
 
       @Override public void visit(Ast.Range range, @Nullable AstNode parent) {
-        consumer.accept(range.model());
+        consumer.accept(range);
         super.visit(range, parent);
       }
     };
@@ -231,78 +220,6 @@ public class Asts {
   @FunctionalInterface
   interface NodeHandler<R> {
     R apply(AstNode node, @Nullable AstNode parent);
-  }
-
-  /** Model of an item in a filter expression. */
-  @SuppressWarnings("rawtypes")
-  public static class Model {
-    public final @Nullable Integer id;
-    /** False if negated, true if not negated. */
-    public final boolean is;
-    /** Returns the FilterModel type. For example, "," for "OR". */
-    public final String type;
-    public final @Nullable Iterable<Comparable> value;
-    public final @Nullable String bounds;
-    public final @Nullable String low;
-    public final @Nullable String high;
-
-    public Model(@Nullable Integer id, boolean is, String type,
-        @Nullable Iterable<Comparable> value, String bounds,
-        String low, String high) {
-      this.id = id;
-      this.is = is;
-      this.type = type;
-      this.value = value;
-      this.bounds = bounds;
-      this.low = low;
-      this.high = high;
-    }
-
-    @Override public String toString() {
-      StringBuilder b = new StringBuilder();
-      b.append("{is ").append(is);
-      if (value != null) {
-        b.append(", value ").append(value);
-      }
-      if (bounds != null) {
-        b.append(", bounds ").append(bounds);
-      }
-      if (low != null) {
-        b.append(", low ").append(low);
-      }
-      if (high != null) {
-        b.append(", high ").append(high);
-      }
-      return b.append("}").toString();
-    }
-
-    @Override public int hashCode() {
-      return Objects.hash(is, type, value, bounds, low, high);
-    }
-
-    @Override public boolean equals(Object o) {
-      return o == this
-          || o instanceof Model
-          && is == ((Model) o).is
-          && type.equals(((Model) o).type)
-          && Objects.equals(value, ((Model) o).value)
-          && Objects.equals(bounds, ((Model) o).bounds)
-          && Objects.equals(low, ((Model) o).low)
-          && Objects.equals(high, ((Model) o).high);
-    }
-
-    public @Nullable String valueString() {
-      if (value == null) {
-        return null;
-      }
-      final StringBuilder b = new StringBuilder();
-      String sep = "";
-      for (Comparable comparable : value) {
-        b.append(sep).append(comparable);
-        sep = ",";
-      }
-      return b.toString();
-    }
   }
 
   /** Visitor that assigns a unique {@link AstNode#id} to every node in a tree.

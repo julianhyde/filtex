@@ -40,8 +40,7 @@ public abstract class AstNode {
 
   public abstract void accept(AstVisitor visitor, @Nullable AstNode parent);
 
-  public abstract Asts.Model model();
-
+  /** False if negated, true if not negated. */
   public boolean is() {
     return true;
   }
@@ -54,8 +53,41 @@ public abstract class AstNode {
     return null;
   }
 
+  /** Returns the FilterModel type. For example, "," for "OR". */
   public String type() {
     return op.s;
+  }
+
+  @SuppressWarnings("rawtypes")
+  public Iterable<Comparable> value() {
+    return null;
+  }
+
+  public String low() {
+    return null;
+  }
+
+  public String high() {
+    return null;
+  }
+
+  public String bounds() {
+    return null;
+  }
+
+  @SuppressWarnings("rawtypes")
+  public @Nullable String valueString() {
+    final @Nullable Iterable<Comparable> value = value();
+    if (value == null) {
+      return null;
+    }
+    final StringBuilder b = new StringBuilder();
+    String sep = "";
+    for (Comparable comparable : value) {
+      b.append(sep).append(comparable);
+      sep = ",";
+    }
+    return b.toString();
   }
 }
 
