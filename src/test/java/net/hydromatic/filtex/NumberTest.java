@@ -24,9 +24,9 @@ import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 import static net.hydromatic.filtex.Filtex.parseFilterExpression;
+import static net.hydromatic.filtex.TestValues.forEach;
 import static net.hydromatic.filtex.ast.Asts.convertTypeToOption;
 
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -35,17 +35,6 @@ import static org.hamcrest.core.Is.is;
 
 /** Tests number expressions. */
 public class NumberTest {
-  /** Runs a set of tests. */
-  <E> void forEach(Iterable<E> iterable, Consumer<E> consumer) {
-    for (E e : iterable) {
-      try {
-        consumer.accept(e);
-      } catch (AssertionError | RuntimeException x) {
-        throw new RuntimeException("Failed '" + e + "'", x);
-      }
-    }
-  }
-
   void checkNumericItem(String expression, String type) {
     final AstNode ast =
         parseFilterExpression(TypeFamily.NUMBER, expression);

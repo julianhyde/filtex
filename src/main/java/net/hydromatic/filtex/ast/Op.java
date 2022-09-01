@@ -26,6 +26,7 @@ public enum Op {
   COMMA(","),
   LITERAL(""),
   NULL("null"),
+  NOTNULL("notnull"),
   OPEN_OPEN("()", "(", ")"),
   OPEN_CLOSED("(]", "(", "]"),
   OPEN_ABSENT(">", "(", "inf)"),
@@ -38,7 +39,7 @@ public enum Op {
 
   // location
 
-  ANYWHERE("anywhere"),
+  ANYWHERE("is anywhere"),
   BOX("box"),
   CIRCLE("circle"),
   POINT("location");

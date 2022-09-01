@@ -22,6 +22,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /** Values shared among tests. */
 public class TestValues {
@@ -33,72 +34,24 @@ public class TestValues {
   public static final List<Triple> LOCATION_EXPRESSION_TEST_ITEMS =
       Triple.builder()
           .add("36.97, -122.03", "36.97, -122.03",
-              "\"lat\": 36.97,\n"
-                  + "  \"left\": undefined,\n"
-                  + "  \"lon\": -122.03,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"location\"")
+              "{lat=36.97, long=-122.03, type=location}")
           .add("-36.97, 122.03", "-36.97, 122.03",
-              "\"lat\": -36.97,\n"
-                  + "  \"left\": undefined,\n"
-                  + "  \"lon\": 122.03,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"location\",")
+              "{lat=-36.97, long=122.03, type=location}")
           .add("-36.97, -122.03", "-36.97, -122.03",
-              "lat: -36.97,\n"
-                  + "  \"left\": undefined,\n"
-                  + "  \"lon\": -122.03,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"location\"")
+              "{lat=-36.97, long=-122.03, type=location}")
           .add("40 miles from -36.97, -122.03", "40 miles from -36.97, -122.03",
-              "\"distance\": 40,\n"
-                  + "  \"id\": 1,\n"
-                  + "  \"lat\": -36.97,\n"
-                  + "  \"left\": undefined,\n"
-                  + "  \"lon\": -122.03,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"circle\",\n"
-                  + "  \"unit\": \"miles\"")
+              "{distance=40, lat=-36.97, lon=-122.03, type=circle, unit=miles}")
           .add("40 miles from 36.97, -122.03", "40 miles from 36.97, -122.03",
-              "\"distance\": 40,\n"
-                  + "  \"id\": 1,\n"
-                  + "  \"lat\": 36.97,\n"
-                  + "  \"left\": undefined,\n"
-                  + "  \"lon\": -122.03,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"circle\",\n"
-                  + "  \"unit\": \"miles\"")
+              "{distance=40, lat=36.97, lon=-122.03, type=circle, unit=miles}")
           .add("100 miles from 36.97, -122.03", "100 miles from 36.97, -122.03",
-              "\"distance\": 100,\n"
-                  + "  \"id\": 1,\n"
-                  + "  \"lat\": 36.97,\n"
-                  + "  \"left\": undefined,\n"
-                  + "  \"lon\": -122.03,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"circle\",\n"
-                  + "  \"unit\": \"miles\"")
+              "{distance=100, lat=36.97, lon=-122.03, type=circle, unit=miles}")
           .add("inside box from 72.33, -173.14 to 14.39, -61.70",
               "72.3°N, 173.1°W to 14.4°N, 61.7°W",
-              "\"lat\": 72.33,\n"
-                  + "  \"lat1\": 14.39,\n"
-                  + "  \"left\": undefined,\n"
-                  + "  \"lon\": -173.14,\n"
-                  + "  \"lon1\": -61.7,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"box\"")
+              "{lat=72.33, lat1=14.39, lon=-173.14, lon1=-61.70, type=box}")
           .add("", "is anywhere", null)
-          .add("NOT NULL", "is not null",
-              "\"left\": undefined,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"notnull\"")
-          .add("-NULL", "is not null",
-              "\"left\": undefined,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"notnull\"")
-          .add("NULL", "is null",
-              "\"left\": undefined,\n"
-                  + "  \"right\": undefined,\n"
-                  + "  \"type\": \"null\"")
+          .add("NOT NULL", "is not null", "{type=notnull}")
+          .add("-NULL", "is not null", "{type=notnull}")
+          .add("NULL", "is null", "{type=null}")
           .build();
 
   /** From
@@ -160,6 +113,17 @@ public class TestValues {
           .add("23,NOT NULL,NOT NULL", "=", "is 23, and is not null",
               "23,not null,not null")
           .build();
+
+  /** Runs a set of tests. */
+  static <E> void forEach(Iterable<E> iterable, Consumer<E> consumer) {
+    for (E e : iterable) {
+      try {
+        consumer.accept(e);
+      } catch (AssertionError | RuntimeException x) {
+        throw new RuntimeException("Failed '" + e + "'", x);
+      }
+    }
+  }
 
   static class GrammarTestItem {
     final String expression;

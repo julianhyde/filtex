@@ -16,8 +16,6 @@
  */
 package net.hydromatic.filtex.ast;
 
-import java.math.BigDecimal;
-
 /** Context for writing an AST out as a string. */
 public class AstWriter {
   private final StringBuilder b;
@@ -86,13 +84,6 @@ public class AstWriter {
               : c == '\\' ? "\\\\"
                   : Character.toString(c))
           .append("\"");
-    } else if (value instanceof BigDecimal) {
-      BigDecimal c = (BigDecimal) value;
-      if (c.compareTo(BigDecimal.ZERO) < 0) {
-        append("~");
-        c = c.negate();
-      }
-      append(c.toString());
     } else {
       append(value.toString());
     }

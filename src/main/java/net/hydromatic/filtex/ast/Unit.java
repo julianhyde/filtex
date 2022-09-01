@@ -18,10 +18,16 @@ package net.hydromatic.filtex.ast;
 
 /** Unit of distance. */
 public enum Unit {
-  METER,
-  FOOT,
-  KILOMETER,
-  MILE;
+  METER("meters"),
+  FOOT("feet"),
+  KILOMETER("kilometers"),
+  MILE("miles");
+
+  public final String plural;
+
+  Unit(String plural) {
+    this.plural = plural;
+  }
 }
 
 // End Unit.java

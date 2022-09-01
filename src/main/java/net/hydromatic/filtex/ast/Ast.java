@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -39,9 +40,9 @@ public class Ast {
       this.location = location;
     }
 
-    @Override
-    public AstWriter unparse(AstWriter writer) {
-      return null;
+    @Override public AstWriter unparse(AstWriter writer) {
+      return writer.append(location.latitude.toString())
+          .append(", ").append(location.longitude.toString());
     }
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
@@ -64,7 +65,24 @@ public class Ast {
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
-      return null;
+      appendDegrees(writer, from.latitude, "°S", "°N");
+      writer.append(", ");
+      appendDegrees(writer, from.longitude, "°W", "°E");
+      writer.append(" to ");
+      appendDegrees(writer, to.latitude, "°S", "°N");
+      writer.append(", ");
+      appendDegrees(writer, to.longitude, "°W", "°E");
+      return writer;
+    }
+
+    private void appendDegrees(AstWriter w, BigDecimal v, String neg,
+        String pos) {
+      v = v.setScale(1, RoundingMode.HALF_EVEN);
+      if (v.signum() < 0) {
+        w.appendLiteral(v.negate()).append(neg);
+      } else {
+        w.appendLiteral(v).append(pos);
+      }
     }
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
@@ -89,7 +107,10 @@ public class Ast {
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
-      return null;
+      return writer.appendLiteral(distance)
+          .append(" ").append(unit.plural)
+          .append(" from ").appendLiteral(location.latitude)
+          .append(", ").appendLiteral(location.longitude);
     }
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
@@ -140,11 +161,27 @@ public class Ast {
       this.is = is;
     }
 
-    @Override public AstWriter unparse(AstWriter writer) {
-      if (!is) {
-        writer.append("not ");
+    @Override public String type() {
+      switch (op) {
+      case NULL:
+        return is ? "null" : "notnull";
+      default:
+        return super.type();
       }
-      return writer.append(op.s);
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      switch (op) {
+      case NULL:
+        return writer.append(is ? "is null" : "is not null");
+      default:
+        if (!is) {
+          writer.append("not ");
+        }
+        return writer.append(op.s);
+      }
+
+
     }
 
     @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {

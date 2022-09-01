@@ -69,7 +69,7 @@ public class Summary {
   }
 
   public static String describeLocation(AstNode node) {
-    return null;
+    return node.unparse(new AstWriter()).toString();
   }
 }
 
