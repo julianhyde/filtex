@@ -95,6 +95,10 @@ public class Filtex {
     try {
       final AstNode node;
       switch (typeFamily) {
+      case DATE:
+        node = parser.dateExpressionEof();
+        return Transforms.locationTransform(node);
+
       case LOCATION:
         node = parser.locationExpressionEof();
         return Transforms.locationTransform(node);

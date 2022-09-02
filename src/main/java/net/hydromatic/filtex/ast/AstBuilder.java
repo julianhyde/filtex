@@ -64,6 +64,11 @@ public enum AstBuilder {
     return new Ast.Comparison(is, op, ImmutableList.copyOf(value));
   }
 
+  /** Creates a year date literal. */
+  public AstNode year(int year) {
+    return new Ast.DateLiteral(Op.YEAR, year, null, null);
+  }
+
   /** Creates a number literal. */
   public Ast.Comparison numberLiteral(boolean is, BigDecimal value) {
     return comparison(is, Op.EQ, ImmutableList.of(value));

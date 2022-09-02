@@ -29,6 +29,125 @@ public class TestValues {
   private TestValues() {}
 
   /** From
+   * <a href="https://github.com/looker-open-source/components/blob/main/packages/filter-expressions/src/grammars/date_grammar_test_expressions.ts">
+   * date_grammar_test_expressions.ts</a>. */
+  public static final List<GrammarTestItem> DATE_EXPRESSION_TEST_ITEMS =
+      GrammarTestItem.builder()
+          .add4("3 days", "3 day", "is in the last 3 days", null)
+          .add4("3 days", "3 day", "is in the last 3 days")
+          .add4("3 days ago", "3 days ago", "is 3 days ago", "pastAgo")
+          .add4("7 year ago", "7 year ago", "is 7 years ago", "pastAgo")
+          .add4("3 months ago for 2 days", "3 month ago for 2 day",
+              "is 3 months ago for 2 days")
+          .add4("before 3 days ago", "before 3 day ago", "is before 3 days ago")
+          .add4("before 2018-01-01 12:00:00", "before 2018/01/01",
+              "is before 2018/01/01")
+          .add4("after 2018-10-05", "after 2018/10/05",
+              "is on or after 2018/10/05")
+          .add4("2018-05-18 12:00:00 to 2018-05-18 14:00:00",
+              "2018/05/18 to 2018/05/18", "is from 2018/05/18 until 2018/05/18")
+          .add4("next week", "next week", "is next week")
+          .add4("last week", "last week", "is previous week")
+          .add4("not null", "not null", "is not null")
+          .add4("null", "null", "is null")
+          .add4("2018-05-18", "2018/05/18", "is on 2018/05/18")
+          .add4("", "", "is any time")
+          .add4("2018", "2018", "is in the year 2018")
+          .add4("2018/01", "2018-01", "is in January 2018")
+          .add4("monday", "monday", "is monday")
+          .add4("before 2 months from now", "before 2 month from now",
+              "is before 2 months from now")
+          .add4("after 2 weeks from now", "after 2 week from now",
+              "is on or after 2 weeks from now")
+          .add4("after 1 month ago", "after 1 month ago",
+              "is on or after 1 month ago")
+          .add4("this year to second", "this year to second",
+              "this year to second", "thisRange")
+          .add4("this year to day", "this year to day", "this year to day",
+              "thisRange")
+
+          // this
+          .add4("this day", "this day", "is this day", "this")
+          .add4("this week", "this week", "is this week", "this")
+          .add4("this month", "this month", "is this month", "this")
+          .add4("this quarter", "this quarter", "is this quarter", "this")
+          .add4("this fiscal quarter", "this fiscal quarter",
+              "is this fiscal quarter", "this")
+          .add4("this year", "this year", "is this year", "this")
+          .add4("this fiscal year", "this fiscal year", "is this fiscal year",
+              "this")
+
+          // next
+          .add4("next day", "next day", "is next day", "next")
+          .add4("next week", "next week", "is next week", "next")
+          .add4("next month", "next month", "is next month", "next")
+          .add4("next quarter", "next quarter", "is next quarter", "next")
+          .add4("next fiscal quarter", "next fiscal quarter",
+              "is next fiscal quarter", "next")
+          .add4("next year", "next year", "is next year", "next")
+          .add4("next fiscal year", "next fiscal year", "is next fiscal year",
+              "next")
+
+          // last
+          .add4("last second", "last second", "is previous second", "last")
+          .add4("last minute", "last minute", "is previous minute", "last")
+          .add4("last hour", "last hour", "is previous hour", "last")
+          .add4("last day", "last day", "is previous day", "last")
+          .add4("last week", "last week", "is previous week", "last")
+          .add4("last month", "last month", "is previous month", "last")
+          .add4("last quarter", "last quarter", "is previous quarter", "last")
+          .add4("last fiscal quarter", "last fiscal quarter",
+              "is previous fiscal quarter", "last")
+          .add4("last year", "last year", "is previous year", "last")
+          .add4("last fiscal year", "last fiscal year",
+              "is previous fiscal year", "last")
+
+          // before this/next/last
+          .add4("before this day", "before this day", "before this day",
+              "before_this")
+          .add4("before this week", "before this week", "before this week",
+              "before_this")
+          .add4("before this month", "before this month", "before this month",
+              "before_this")
+
+          .add4("before next day", "before next day", "before next day",
+              "before_next")
+          .add4("before next quarter", "before next quarter",
+              "before next quarter", "before_next")
+          .add4("before next year", "before next year", "before next year",
+              "before_next")
+
+          .add4("before last day", "before last day", "before last day",
+              "before_last")
+          .add4("before last week", "before last week", "before last week",
+              "before_last")
+          .add4("before last month", "before last month", "before last month",
+              "before_last")
+
+          // after this/next/last
+          .add4("after this day", "after this day", "after this day",
+              "after_this")
+          .add4("after this week", "after this week", "after this week",
+              "after_this")
+          .add4("after this month", "after this month", "after this month",
+              "after_this")
+
+          .add4("after next day", "after next day", "after next day",
+              "after_next")
+          .add4("after next week", "after next week", "after next week",
+              "after_next")
+          .add4("after next month", "after next month", "after next month",
+              "after_next")
+
+          .add4("after last day", "after last day", "after last day",
+              "after_last")
+          .add4("after last quarter", "after last quarter",
+              "after last quarter", "after_last")
+          .add4("after last year", "after last year", "after last year",
+              "after_last")
+          .build();
+
+  /** From
    * <a href="https://github.com/looker-open-source/components/blob/main/packages/filter-expressions/src/grammars/location_grammar.spec.ts">
    * location_grammar.spec.ts</a>. */
   public static final List<Triple> LOCATION_EXPRESSION_TEST_ITEMS =
@@ -133,10 +252,12 @@ public class TestValues {
     final @Nullable String bounds;
     final @Nullable String describe;
     final @Nullable String output;
+    final @Nullable String digest;
 
     GrammarTestItem(String expression, String type, @Nullable String low,
         @Nullable String high, @Nullable String bounds,
-        @Nullable String describe, @Nullable String output) {
+        @Nullable String describe, @Nullable String output,
+        @Nullable String digest) {
       this.expression = expression;
       this.type = type;
       this.low = low;
@@ -152,6 +273,7 @@ public class TestValues {
       this.bounds = bounds;
       this.describe = describe;
       this.output = output;
+      this.digest = digest;
     }
 
     static ListBuilder builder() {
@@ -171,6 +293,16 @@ public class TestValues {
         return add(expression, type, null, null, null, describe, output);
       }
 
+      public ListBuilder add4(String expression, String output, String describe,
+          String type) {
+        return add(expression, type, describe, output);
+      }
+
+      public ListBuilder add4(String expression, String output,
+          String describe) {
+        return add(expression, "", null, null, null, describe, output);
+      }
+
       public ListBuilder add(String expression, String type, String low,
           String high, String bounds) {
         return add(expression, type, low, high, bounds, null, null);
@@ -181,7 +313,7 @@ public class TestValues {
           @Nullable String describe, @Nullable String output) {
         b.add(
             new GrammarTestItem(expression, type, low, high, bounds, describe,
-                output));
+                output, null));
         return this;
       }
 

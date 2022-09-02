@@ -47,7 +47,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Map;import java.util.regex.Pattern;
 
 import static net.hydromatic.filtex.ast.AstBuilder.ast;
 
@@ -57,6 +57,9 @@ import static net.hydromatic.filtex.ast.AstBuilder.ast;
 public class FiltexParserImpl implements FiltexParser {
   private static final Logger LOGGER =
       LoggerFactory.getLogger("net.hydromatic.filtex.parse");
+
+  private static final Pattern YEAR_PATTERN =
+     Pattern.compile("[0-9][0-9][0-9][0-9]");
 
   private int lineOffset;
   private String file = "";
@@ -88,6 +91,14 @@ void debug_message1()
   LOGGER.info("{} , {}", getToken(0).image, getToken(1).image);
 }
 
+/** Parses a date filter expression followed by end-of-file. */
+AstNode dateExpressionEof() : {
+  final AstNode node;
+}
+{
+  node = dateExpression() <EOF> { return node; }
+}
+
 /** Parses a location filter expression followed by end-of-file. */
 AstNode locationExpressionEof() : {
   final AstNode node;
@@ -102,6 +113,71 @@ AstNode numericExpressionEof() : {
 }
 {
   node = numericExpression() <EOF> { return node; }
+}
+
+// == Date ===================================================================
+
+/** Parses a date expression.
+ *
+ * <p>Accepts expressions like:
+ * "{@code 36.97, -122.03}",
+ * "{@code 40 miles from 36.97, -122.03}",
+ * "{@code inside box from 72.33, -173.14 to 14.39, -61.70}"
+ */
+AstNode dateExpression() : {
+  final List<AstNode> list = new ArrayList<>();
+}
+{
+  addDateTerm(list)
+  ( <COMMA> addTerm(list) )*
+  { return ast.logicalExpression(list); }
+}
+
+/** Adds a date term to a list. */
+void addDateTerm(List<AstNode> list) : {
+  final AstNode node;
+}
+{
+  node = dateTerm() { list.add(node); }
+}
+
+/** Parses a date term. */
+AstNode dateTerm() : {
+  final boolean is;
+  final AstNode node;
+}
+{
+  node = userAttribute() { return node; }
+//| node = rangeInterval() { return node; }
+//| node = range() { return node; }
+//| node = datetimeRule() { return node; }
+//| node = yearMonthInterval() { return node; }
+//| node = yearQuarterRule() { return node; }
+| node = year() { return node; }
+//| node = relativeRange() { return node; }
+//| node = fromNow() { return node; }
+//| node = pastAgo() { return node; }
+//| node = past() { return node; }
+//| node = thisRange() { return node; }
+//| node = thisNext() { return node; }
+//| node = last() { return node; }
+//| node = lastInterval() { return node; }
+//| node = dayInterval() { return node; }
+//| node = beforeAfterThisNextLast() { return node; }
+//| node = dayExpressions() { return node; }
+//| node = beforeAfter() { return node; }
+//| node = fiscalQuarterRule() { return node; }
+//| node = fiscalYearRule() { return node; }
+| node = nulls() { return node; }
+}
+
+AstNode year() : {
+  final int year;
+}
+{
+  LOOKAHEAD( { getToken(1).kind == NUMBER_LITERAL
+    && YEAR_PATTERN.matcher(getToken(1).image).matches() } )
+  <NUMBER_LITERAL> { return ast.year(Integer.parseInt(token.image)); }
 }
 
 // == Location ===============================================================

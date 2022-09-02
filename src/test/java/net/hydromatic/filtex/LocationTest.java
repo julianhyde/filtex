@@ -81,7 +81,7 @@ public class LocationTest {
   }
 
   /** Helps generate a digest of the properties in an AstNode. */
-  private static class Digester {
+  static class Digester {
     final SortedMap<String, Object> map = new TreeMap<>();
 
     Digester put(String key, Object value) {

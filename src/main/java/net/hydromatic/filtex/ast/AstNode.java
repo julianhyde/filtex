@@ -89,6 +89,11 @@ public abstract class AstNode {
     }
     return b.toString();
   }
+
+  /** Converts a DATE or DATE_TIME node to a descriptive string. */
+  public String dateString(boolean showTime) {
+    throw new UnsupportedOperationException("not a date: " + getClass());
+  }
 }
 
 // End AstNode.java

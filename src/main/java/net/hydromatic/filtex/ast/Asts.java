@@ -16,6 +16,8 @@
  */
 package net.hydromatic.filtex.ast;
 
+import net.hydromatic.filtex.TypeFamily;
+
 import com.google.common.collect.ImmutableList;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -25,6 +27,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static net.hydromatic.filtex.ast.AstBuilder.ast;
 
@@ -97,6 +102,20 @@ public class Asts {
         .addAll(orItems)
         .addAll(andItems)
         .build();
+  }
+
+  /** Given an AST and a nodeToString conversion function for that particular
+   * type of filter, it converts the AST to a string expression representation.
+   *
+   * <p>See
+   * <a href="https://github.com/looker-open-source/components/blob/main/packages/filter-expressions/src/utils/tree/tree_to_string.ts">
+   * tree_to_string.ts</a>. */
+  public static String treeToString(AstNode root, Function<AstNode, String> f,
+      Predicate<AstNode> predicate) {
+    return treeToList(root).stream()
+        .filter(predicate)
+        .map(f)
+        .collect(Collectors.joining(","));
   }
 
   /** Traverses the tree depth-first inorder (left, root, right) and assigns an
@@ -211,6 +230,33 @@ public class Asts {
    */
   public static String convertTypeToOption(boolean is, String type) {
     return is ? type : "!" + type;
+  }
+
+  /** Converts filter types to matches (advanced).
+   *
+   * <p>dateFilter 'day', type 'thisRange', and type 'pastAgo' need to be in the
+   * filter list, but we do not want it showing up in the advanced filter
+   * options therefore it should be converted to matches (advanced).
+   *
+   * <p>See
+   * <a href="https://github.com/looker-open-source/components/blob/main/packages/filter-expressions/src/utils/option/convert_type_to_matches_advanced_option.ts">
+   * convert_type_to_matches_advanced_option.ts</a>.
+   */
+  public static String convertTypeToMatchesAdvancedOption(String type) {
+    return type.equals("day")
+        || type.equals("thisRange")
+        || type.equals("pastAgo")
+        || type.startsWith("before_")
+        || type.startsWith("after_")
+        ? "matchesAdvanced"
+        : type;
+  }
+
+  /** Converts the AST to an array of FilterItems and then
+   * converts each item into its expression representation. */
+  public static String dateFilterToString(AstNode root, TypeFamily typeFamily) {
+    return treeToString(root, node -> node.dateString(typeFamily.isDateTime()),
+        node -> true);
   }
 
   /** Callback for a node in a traversal.

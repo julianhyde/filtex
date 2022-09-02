@@ -31,6 +31,30 @@ public class Ast {
   private Ast() {
   }
 
+  /** Date literal. */
+  public static class DateLiteral extends AstNode {
+    public final Integer year;
+    public final @Nullable Integer month;
+    public final @Nullable Integer day;
+
+    public DateLiteral(Op op, Integer year,
+        @Nullable Integer month,
+        @Nullable Integer day) {
+      super(Pos.ZERO, op);
+      this.year = year;
+      this.month = month;
+      this.day = day;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
   /** Geographical box. */
   public static class Point extends AstNode {
     public final Location location;

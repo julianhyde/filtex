@@ -42,7 +42,11 @@ public enum Op {
   ANYWHERE("is anywhere"),
   BOX("box"),
   CIRCLE("circle"),
-  POINT("location");
+  POINT("location"),
+
+  // date
+
+  YEAR("year");
 
   public final String s;
   public final String left;

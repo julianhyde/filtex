@@ -23,6 +23,8 @@ import net.hydromatic.filtex.ast.Summary;
  * Is the filter expression for number, date, or string values?
  */
 public enum TypeFamily {
+  DATE,
+  DATE_TIME,
   LOCATION,
   NUMBER,
   STRING;
@@ -34,6 +36,10 @@ public enum TypeFamily {
     default:
       throw new UnsupportedOperationException("unexpected: " + this);
     }
+  }
+
+  public boolean isDateTime() {
+    return this == DATE_TIME;
   }
 }
 
