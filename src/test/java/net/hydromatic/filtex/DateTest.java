@@ -19,6 +19,9 @@ package net.hydromatic.filtex;
 import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.AstNode;
 import net.hydromatic.filtex.ast.Asts;
+import net.hydromatic.filtex.ast.Date;
+import net.hydromatic.filtex.ast.Datetime;
+import net.hydromatic.filtex.ast.Op;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Disabled;
@@ -37,11 +40,53 @@ import static org.hamcrest.core.Is.is;
 public class DateTest {
 
   private String digest(AstNode node) {
-    return new LocationTest.Digester()
-        .put("type", node.type())
-        .putIfInstance("year", Ast.DateLiteral.class, node, d ->
-            d.year)
+    return digest(new LocationTest.Digester(), "", node)
         .toString();
+  }
+
+  private LocationTest.Digester digest(LocationTest.Digester digester,
+      String prefix, Object node) {
+    digester
+        .putIfInstance(prefix + "type", AstNode.class, node, AstNode::type)
+        .putIfInstanceIf(prefix + "year", Ast.DateLiteral.class, node,
+            d -> d.op != Op.ON, d -> d.year)
+        .putIfInstanceIf(prefix + "date.year", Ast.DateLiteral.class, node,
+            d -> d.op == Op.ON, d -> d.year)
+        .putIfInstance(prefix + "quarter", Ast.DateLiteral.class, node,
+            d -> d.quarter)
+        .putIfInstanceIf(prefix + "month", Ast.DateLiteral.class, node,
+            d -> d.op != Op.ON, d -> d.month)
+        .putIfInstanceIf(prefix + "date.month", Ast.DateLiteral.class, node,
+            d -> d.op == Op.ON, d -> d.month)
+        .putIfInstanceIf(prefix + "date.day", Ast.DateLiteral.class, node,
+            d -> d.op == Op.ON, d -> d.day)
+        .putIfInstance(prefix + "unit", Ast.Interval.class, node, i ->
+            i.unit.singular)
+        .putIfInstance(prefix + "value", Ast.Interval.class, node, i -> i.value)
+        .putIfInstance(prefix + "year", Ast.MonthInterval.class, node,
+            d -> d.year)
+        .putIfInstance(prefix + "month", Ast.MonthInterval.class, node,
+            d -> d.month)
+        .putIfInstance(prefix + "year", Date.class, node, d -> d.year)
+        .putIfInstance(prefix + "month", Date.class, node, d -> d.month)
+        .putIfInstance(prefix + "day", Date.class, node, d -> d.day)
+        .putIfInstance(prefix + "hour", Datetime.class, node, d -> d.hour)
+        .putIfInstance(prefix + "minute", Datetime.class, node, d -> d.minute)
+        .putIfInstance(prefix + "second", Datetime.class, node, d -> d.second)
+        .putIfInstance(prefix + "range", Ast.Absolute.class, node,
+            n -> "absolute");
+    if (node instanceof Ast.RangeInterval) {
+      // TODO convert the following to new method .recurseIfInstance
+      digest(digester, prefix + "end.", ((Ast.RangeInterval) node).end);
+      digest(digester, prefix + "start.", ((Ast.RangeInterval) node).start);
+    }
+    if (node instanceof Ast.MonthInterval) {
+      digest(digester, prefix + "end.", ((Ast.MonthInterval) node).end);
+    }
+    if (node instanceof Ast.Absolute) {
+      digest(digester, prefix + "date.", ((Ast.Absolute) node).date);
+    }
+    return digester;
   }
 
   @Disabled
@@ -133,21 +178,30 @@ public class DateTest {
 
   static final List<TestValues.Pair> ABSOLUTE_DATES =
       TestValues.Pair.builder()
-/*
-          .add("2018/05/29", "xx")
-          .add("2018/05/10 for 3 days", "xx")
-          .add("after 2018/05/10", "xx")
-          .add("before 2018/05/10", "xx")
-          .add("2018/05", "xx")
-          .add("2018/05 for 2 months", "xx")
-          .add("2018/05/10 05:00 for 5 hours", "xx")
-          .add("2018/05/10 for 5 months", "xx")
-*/
+          .add("2018/05/29", "{date={day=29, month=5, year=2018}, type=on}")
+          .add("2018/05/10 for 3 days",
+              "{end={type=interval, unit=day, value=3}, "
+                  + "start={day=10, month=5, year=2018}, type=rangeInterval}")
+          .add("after 2018/05/10",
+              "{date={day=10, month=5, year=2018}, range=absolute,"
+                  + " type=after}")
+          .add("before 2018/05/10",
+              "{date={day=10, month=5, year=2018}, range=absolute,"
+                  + " type=before}")
+          .add("2018/05", "{month=5, type=month, year=2018}")
+          .add("2018/05 for 2 months",
+              "{end={type=interval, unit=month, value=2}, month=5,"
+                  + " type=monthInterval, year=2018}")
+          .add("2018/05/10 05:00 for 5 hours",
+              "{end={type=interval, unit=hour, value=5},"
+                  + " start={day=10, hour=5, minute=0, month=5, year=2018},"
+                  + " type=rangeInterval}")
+          .add("2018/05/10 for 5 months",
+              "{end={type=interval, unit=month, value=5},"
+                  + " start={day=10, month=5, year=2018}, type=rangeInterval}")
           .add("2018", "{type=year, year=2018}")
-/*
-          .add("FY2018", "xx")
-          .add("FY2018-Q1", "xx")
-*/
+          .add("FY2018", "{type=fiscalYear, year=2018}")
+          .add("FY2018-Q1", "{quarter=Q1, type=fiscalQuarter, year=2018}")
           .build();
 
   @Test void testDateGrammarCanParseAbsoluteDate() {

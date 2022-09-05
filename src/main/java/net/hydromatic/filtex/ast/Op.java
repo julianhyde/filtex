@@ -16,6 +16,10 @@
  */
 package net.hydromatic.filtex.ast;
 
+import com.google.common.base.CaseFormat;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /** Parse tree operator. */
 public enum Op {
   EQ("="),
@@ -25,8 +29,8 @@ public enum Op {
   LT("<"),
   COMMA(","),
   LITERAL(""),
-  NULL("null"),
-  NOTNULL("notnull"),
+  NULL,
+  NOTNULL,
   OPEN_OPEN("()", "(", ")"),
   OPEN_CLOSED("(]", "(", "]"),
   OPEN_ABSENT(">", "(", "inf)"),
@@ -35,18 +39,28 @@ public enum Op {
   CLOSED_ABSENT(">=", "[", "inf)"),
   ABSENT_OPEN("<", "(-inf", ")"),
   ABSENT_CLOSED("<=", "(-inf", "]"),
-  MATCHES_ADVANCED("matchesAdvanced"),
+  MATCHES_ADVANCED,
 
   // location
 
   ANYWHERE("is anywhere"),
-  BOX("box"),
-  CIRCLE("circle"),
+  BOX,
+  CIRCLE,
   POINT("location"),
 
   // date
 
-  YEAR("year");
+  YEAR,
+  FISCAL_YEAR,
+  QUARTER,
+  FISCAL_QUARTER,
+  MONTH,
+  ON,
+  RANGE_INTERVAL,
+  MONTH_INTERVAL,
+  INTERVAL,
+  BEFORE,
+  AFTER;
 
   public final String s;
   public final String left;
@@ -58,12 +72,16 @@ public enum Op {
     this.right = right;
   }
 
-  Op(String s) {
-    this.s = s;
+  Op(@Nullable String s) {
+    this.s = s != null ? s
+        : CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, name());
     this.left = null;
     this.right = null;
   }
 
+  Op() {
+    this(null);
+  }
   /** Returns whether this operation is a range that is closed below;
    * for example "[0, 10)" contains its lower bound, "0". */
   public boolean containsLowerBound() {

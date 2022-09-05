@@ -159,7 +159,18 @@ public class Transforms {
   }
 
   /**
-   * Applies the following transformations on the number AST:
+   * Applies the following transformations on the date AST:
+   *
+   * <ul>
+   *   <li>TODO</li>
+   * </ul>
+   */
+  public static AstNode dateTransform(AstNode root) {
+    return root;
+  }
+
+  /**
+   * Applies the following transformations on the location AST:
    *
    * <ul>
    *   <li>combine the value array on nodes of type '='</li>

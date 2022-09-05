@@ -28,17 +28,21 @@ PARSER_BEGIN(FiltexParserImpl)
 package net.hydromatic.filtex.parse;
 
 import net.hydromatic.filtex.ast.Ast;
-import net.hydromatic.filtex.ast.Ast.*;
 import net.hydromatic.filtex.ast.AstNode;
 import net.hydromatic.filtex.ast.Bound;
+import net.hydromatic.filtex.ast.Date;
+import net.hydromatic.filtex.ast.Datetime;
+import net.hydromatic.filtex.ast.DatetimeUnit;
 import net.hydromatic.filtex.ast.Location;
 import net.hydromatic.filtex.ast.Op;
 import net.hydromatic.filtex.ast.Pos;
+import net.hydromatic.filtex.ast.Time;
 import net.hydromatic.filtex.ast.Unit;
+import net.hydromatic.filtex.util.Pair;
 
 import com.google.common.collect.ImmutableList;
 
-import net.hydromatic.filtex.ast.Unit;import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +51,9 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;import java.util.regex.Pattern;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 import static net.hydromatic.filtex.ast.AstBuilder.ast;
 
@@ -60,6 +66,9 @@ public class FiltexParserImpl implements FiltexParser {
 
   private static final Pattern YEAR_PATTERN =
      Pattern.compile("[0-9][0-9][0-9][0-9]");
+
+  private static final Pattern POSITIVE_INTEGER_PATTERN =
+     Pattern.compile("[1-9][0-9]*");
 
   private int lineOffset;
   private String file = "";
@@ -119,10 +128,7 @@ AstNode numericExpressionEof() : {
 
 /** Parses a date expression.
  *
- * <p>Accepts expressions like:
- * "{@code 36.97, -122.03}",
- * "{@code 40 miles from 36.97, -122.03}",
- * "{@code inside box from 72.33, -173.14 to 14.39, -61.70}"
+ * <p>Accepts expressions like: TODO
  */
 AstNode dateExpression() : {
   final List<AstNode> list = new ArrayList<>();
@@ -148,11 +154,10 @@ AstNode dateTerm() : {
 }
 {
   node = userAttribute() { return node; }
-//| node = rangeInterval() { return node; }
 //| node = range() { return node; }
-//| node = datetimeRule() { return node; }
-//| node = yearMonthInterval() { return node; }
-//| node = yearQuarterRule() { return node; }
+| node = onDatetime() { return node; }
+| node = yearQuarter() { return node; }
+| node = yearMonth() { return node; }
 | node = year() { return node; }
 //| node = relativeRange() { return node; }
 //| node = fromNow() { return node; }
@@ -165,19 +170,166 @@ AstNode dateTerm() : {
 //| node = dayInterval() { return node; }
 //| node = beforeAfterThisNextLast() { return node; }
 //| node = dayExpressions() { return node; }
-//| node = beforeAfter() { return node; }
-//| node = fiscalQuarterRule() { return node; }
-//| node = fiscalYearRule() { return node; }
+| node = beforeAfter() { return node; }
+| node = fiscalQuarter() { return node; }
+| node = fiscalYear() { return node; }
 | node = nulls() { return node; }
 }
 
-AstNode year() : {
-  final int year;
+// E.g. "3 days"
+Ast.Interval nInterval() : {
+  final BigDecimal value;
+  final DatetimeUnit unit;
 }
+{
+  value = positiveInteger()
+  unit = intervalUnit() {
+    return ast.interval(unit, value);
+  }
+}
+
+BigDecimal positiveInteger() : {}
+{
+  LOOKAHEAD( { getToken(1).kind == NUMBER_LITERAL
+    && POSITIVE_INTEGER_PATTERN.matcher(getToken(1).image).matches() } )
+  <NUMBER_LITERAL> { return new BigDecimal(token.image); }
+}
+
+AstNode year() : {}
 {
   LOOKAHEAD( { getToken(1).kind == NUMBER_LITERAL
     && YEAR_PATTERN.matcher(getToken(1).image).matches() } )
   <NUMBER_LITERAL> { return ast.year(Integer.parseInt(token.image)); }
+}
+
+AstNode fiscalYear() : {}
+{
+  <FY_YEAR> {
+    return ast.fiscalYear(Integer.parseInt(token.image.substring(2)));
+  }
+}
+
+AstNode fiscalQuarter() : {}
+{
+  <FY_YEAR_QUARTER> {
+    return ast.fiscalQuarter(Integer.parseInt(token.image.substring(2, 6)),
+        token.image.substring(7, 9));
+  }
+}
+
+AstNode yearMonth() : {
+  final int year;
+  final int month;
+  final Ast.Interval end;
+}
+{
+  <YEAR_MONTH> {
+    year = Integer.parseInt(token.image.substring(0, 4));
+    month = Integer.parseInt(token.image.substring(5, 7));
+  }
+  ( <FOR> end = nInterval() {
+      return ast.monthInterval(year, month, end);
+    }
+  | { return ast.month(year, month); }
+  )
+}
+
+AstNode yearQuarter() : {}
+{
+  "[0-9]0-9][0-9][0-9]Q[1-4]" {
+    return ast.quarter(Integer.parseInt(token.image.substring(0, 4)),
+        token.image.substring(5, 7));
+  }
+}
+
+// break units as used by the this/next/last expressions
+DatetimeUnit intervalUnit() : {
+  DatetimeUnit unit;
+}
+{
+  unit = timeUnit() { return unit; }
+| unit = dateUnit() { return unit; }
+}
+
+DatetimeUnit timeUnit() : {}
+{
+  ("hour" | "hours" | "minute" | "minutes" | "second" | "seconds") {
+    return DatetimeUnit.of(token.image);
+  }
+}
+
+DatetimeUnit dateUnit() : {}
+{
+  ("year" | "years"
+  | "fiscal_year" | "fiscal_years"
+  | "quarter" | "quarters"
+  | "fiscal_quarter" | "fiscal_quarters"
+  | "month" | "months"
+  | "week" | "weeks"
+  | "day" | "days") {
+    return DatetimeUnit.of(token.image);
+  }
+}
+
+// "after 2018/05/10"
+// "before 2018/05/10"
+AstNode beforeAfter() : {
+  final boolean before;
+  final Date date;
+}
+{
+  ( <BEFORE> { before = true;}
+  | <AFTER> { before = false; }
+  )
+  date = datetime() {
+    return ast.absolute(date, before);
+  }
+}
+
+// "2019/01/01 08:45:00" (on)
+// or "2018/05/10 for 5 months" (rangeInterval)
+AstNode onDatetime() : {
+  final Date start;
+  final Ast.Interval end;
+}
+{
+  start = datetime()
+  (
+    <FOR> end = nInterval() { return ast.rangeInterval(start, end); }
+  | { return ast.on(start); }
+  )
+}
+
+// Date or Datetime
+Date datetime() : {
+  final Date date;
+  final Time time;
+}
+{
+  date = date()
+  ( time = time() { return date.plus(time); }
+  | { return date; }
+  )
+}
+
+Date date() : {}
+{
+  <YYYY_MM_DD> {
+    return new Date(Integer.parseInt(token.image.substring(0, 4)),
+      Integer.parseInt(token.image.substring(5, 7)),
+      Integer.parseInt(token.image.substring(8, 10)));
+  }
+}
+
+Time time() : {}
+{
+  <HH_MM_SS> {
+    return new Time(Integer.parseInt(token.image.substring(0, 2)),
+      Integer.parseInt(token.image.substring(3, 5)),
+      token.image.length() == 8
+        ? Integer.parseInt(token.image.substring(6, 8))
+        : null);
+  }
 }
 
 // == Location ===============================================================
@@ -468,9 +620,31 @@ BigDecimal number() : {}
 
 /* LITERALS */
 
+// The following tokens are in the (unused) lexical state NEVER because we want
+// to use their definitions in other tokens but not be parsed as whole tokens.
+<NEVER> TOKEN :
+{
+  < YYYY: ["0"-"9"]["0"-"9"]["0"-"9"]["0"-"9"] >
+| < MM: "0"["0"-"9"] | "1"["0"-"2"] >
+| < DD: "0"["1"-"9"] | "1"["0"-"9"] | "2"["0"-"9"] | "3"["0"-"1"] >
+| < HH: "0"["1"-"9"] | "1"["0"-"9"] | "2"["0"-"3"] >
+| < MI: ["0"-"5"]["0"-"9"] >
+| < SS: ["0"-"5"]["0"-"9"] >
+| < POSITIVE_INTEGER: ["1"-"9"](["0"-"9"])* >
+}
+
 <DEFAULT> TOKEN :
 {
-  < NUMBER_LITERAL: ("-")?
+  < DATE_SEP: "/" | "-" >
+| < TIME_SEP: ":" >
+
+| < YEAR_MONTH: <YYYY> <DATE_SEP> <MM> >
+| < YYYY_MM_DD: <YYYY> <DATE_SEP> <MM> <DATE_SEP> <DD> >
+| < HH_MM_SS: <HH> <TIME_SEP> <MI> (<TIME_SEP> <SS>)? >
+| < FY_YEAR: "FY" <YYYY> >
+| < FY_YEAR_QUARTER: "FY" ["0"-"9"]["0"-"9"]["0"-"9"]["0"-"9"] "-Q" ["1"-"4"] >
+
+| < NUMBER_LITERAL: ("-")?
       (["0"-"9"])+
       ("." (["0"-"9"])+)?
       (["e", "E"] ("-")?(["0"-"9"])+)? >
@@ -497,7 +671,10 @@ BigDecimal number() : {}
 {
   < DOUBLE_QUOTE: "\"" >
 | < CHAR_LITERAL: ("#") <QUOTED_STRING> >
+| < AFTER: "AFTER" >
+| < BEFORE: "BEFORE" >
 | < BOX: "BOX" >
+| < FOR: "FOR" >
 | < FROM: "FROM" >
 | < INSIDE: "INSIDE" >
 | < NOT: "NOT" >

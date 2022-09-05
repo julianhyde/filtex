@@ -66,7 +66,43 @@ public enum AstBuilder {
 
   /** Creates a year date literal. */
   public AstNode year(int year) {
-    return new Ast.DateLiteral(Op.YEAR, year, null, null);
+    return new Ast.DateLiteral(Op.YEAR, year, null, null, null, null, null,
+        null);
+  }
+
+  /** Creates a fiscal year date literal. */
+  public AstNode fiscalYear(int year) {
+    return new Ast.DateLiteral(Op.FISCAL_YEAR, year, null, null, null, null,
+        null, null);
+  }
+
+  /** Creates a year-quarter date literal. */
+  public AstNode quarter(int year, String quarter) {
+    return new Ast.DateLiteral(Op.QUARTER, year, quarter, null, null, null,
+        null, null);
+  }
+
+  /** Creates a fiscal year-quarter date literal. */
+  public AstNode fiscalQuarter(int year, String quarter) {
+    return new Ast.DateLiteral(Op.FISCAL_QUARTER, year, quarter, null, null,
+        null, null, null);
+  }
+
+  /** Creates a year-month date literal. */
+  public AstNode month(int year, int month) {
+    return new Ast.DateLiteral(Op.MONTH, year, null, month, null, null, null,
+        null);
+  }
+
+  public AstNode on(Date date) {
+    if (date instanceof Datetime) {
+      final Datetime datetime = (Datetime) date;
+      return new Ast.DateLiteral(Op.ON, datetime.year, null, datetime.month,
+          datetime.day, datetime.hour, datetime.minute, datetime.second);
+    } else {
+      return new Ast.DateLiteral(Op.ON, date.year, null, date.month,
+          date.day, null, null, null);
+    }
   }
 
   /** Creates a number literal. */
@@ -170,6 +206,22 @@ public enum AstBuilder {
       BinaryOperator<E> combiner) {
     return foldLeft(ImmutableList.copyOf(iterable).reverse(),
         (BinaryOperator<E>) (x, y) -> combiner.apply(y, x));
+  }
+
+  public Ast.Interval interval(DatetimeUnit unit, BigDecimal value) {
+    return new Ast.Interval(unit, value);
+  }
+
+  public AstNode rangeInterval(Date start, Ast.Interval end) {
+    return new Ast.RangeInterval(start, end);
+  }
+
+  public AstNode monthInterval(int year, int month, Ast.Interval end) {
+    return new Ast.MonthInterval(year, month, end);
+  }
+
+  public AstNode absolute(Date date, boolean before) {
+    return new Ast.Absolute(date, before);
   }
 }
 

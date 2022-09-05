@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static net.hydromatic.filtex.Filtex.parseFilterExpression;
 import static net.hydromatic.filtex.TestValues.forEach;
@@ -90,13 +91,39 @@ public class LocationTest {
     }
 
     @Override public String toString() {
-      return map.toString();
+      // Convert map "{a=1, b.x=2, b.y=3}" to map2 "{a=1, b={x=2, y=3}}"
+      final SortedMap<String, Object> map2 = new TreeMap<>();
+      map.forEach((key, value) -> {
+        if (key.contains(".")) {
+          int i = key.indexOf('.');
+          @SuppressWarnings("unchecked") SortedMap<String, Object> subMap =
+              (SortedMap<String, Object>)
+                  map2.computeIfAbsent(key.substring(0, i),
+                      k -> new TreeMap<>());
+          subMap.put(key.substring(i + 1), value);
+        } else {
+          map2.put(key, value);
+        }
+      });
+      return map2.toString();
     }
 
     <T> Digester putIfInstance(String key, Class<T> clazz, Object o,
-        Function<T, Object> f) {
+        Function<T, @Nullable Object> f) {
+      return putIfInstanceIf(key, clazz, o, t -> true, f);
+    }
+
+    <T> Digester putIfInstanceIf(String key, Class<T> clazz, Object o,
+        Predicate<T> predicate,
+        Function<T, @Nullable Object> f) {
       if (clazz.isInstance(o)) {
-        map.put(key, f.apply(clazz.cast(o)));
+        T t = clazz.cast(o);
+        if (predicate.test(t)) {
+          @Nullable Object value = f.apply(t);
+          if (value != null) {
+            map.put(key, value);
+          }
+        }
       }
       return this;
     }

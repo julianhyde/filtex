@@ -34,16 +34,86 @@ public class Ast {
   /** Date literal. */
   public static class DateLiteral extends AstNode {
     public final Integer year;
+    public final @Nullable String quarter;
     public final @Nullable Integer month;
     public final @Nullable Integer day;
+    private final Integer hour;
+    private final Integer minute;
+    private final Integer second;
 
-    public DateLiteral(Op op, Integer year,
-        @Nullable Integer month,
-        @Nullable Integer day) {
+    public DateLiteral(Op op, Integer year, @Nullable String quarter,
+        @Nullable Integer month, @Nullable Integer day, @Nullable Integer hour,
+        @Nullable Integer minute, @Nullable Integer second) {
       super(Pos.ZERO, op);
       this.year = year;
+      this.quarter = quarter;
       this.month = month;
       this.day = day;
+      this.hour = hour;
+      this.minute = minute;
+      this.second = second;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  /** Interval, e.g. "3 days". */
+  public static class Interval extends AstNode {
+    public final BigDecimal value;
+    public final DatetimeUnit unit;
+
+    Interval(DatetimeUnit unit, BigDecimal value) {
+      super(Pos.ZERO, Op.INTERVAL);
+      this.unit = unit;
+      this.value = value;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  /** Date range, e.g. "2018/05/10 for 3 days". */
+  public static class RangeInterval extends AstNode {
+    public final Date start;
+    public final Ast.Interval end;
+
+    RangeInterval(Date start, Ast.Interval end) {
+      super(Pos.ZERO, Op.RANGE_INTERVAL);
+      this.start = start;
+      this.end = end;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  /** Month range, e.g. "2018/05 for 3 months". */
+  public static class MonthInterval extends AstNode {
+    public final int year;
+    public final int month;
+    public final Ast.Interval end;
+
+    MonthInterval(int year, int month, Ast.Interval end) {
+      super(Pos.ZERO, Op.MONTH_INTERVAL);
+      this.year = year;
+      this.month = month;
+      this.end = end;
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -327,6 +397,23 @@ public class Ast {
 
     @Override public AstWriter unparse(AstWriter writer) {
       return writer.append(expression);
+    }
+  }
+
+  public static class Absolute extends AstNode {
+    public final Date date;
+
+    public Absolute(Date date, boolean before) {
+      super(Pos.ZERO, before ? Op.BEFORE : Op.AFTER);
+      this.date = date;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
     }
   }
 }
