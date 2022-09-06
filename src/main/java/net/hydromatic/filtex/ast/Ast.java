@@ -23,6 +23,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Objects;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 import static java.util.Objects.requireNonNull;
 
@@ -34,14 +37,14 @@ public class Ast {
   /** Date literal. */
   public static class DateLiteral extends AstNode {
     public final Integer year;
-    public final @Nullable String quarter;
+    public final @Nullable Integer quarter;
     public final @Nullable Integer month;
     public final @Nullable Integer day;
     private final Integer hour;
     private final Integer minute;
     private final Integer second;
 
-    public DateLiteral(Op op, Integer year, @Nullable String quarter,
+    public DateLiteral(Op op, Integer year, @Nullable Integer quarter,
         @Nullable Integer month, @Nullable Integer day, @Nullable Integer hour,
         @Nullable Integer minute, @Nullable Integer second) {
       super(Pos.ZERO, op);
@@ -52,6 +55,24 @@ public class Ast {
       this.hour = hour;
       this.minute = minute;
       this.second = second;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  /** Day literal. */
+  public static class DayLiteral extends AstNode {
+    public final String day;
+
+    public DayLiteral(String day) {
+      super(Pos.ZERO, Op.DAY);
+      this.day = day;
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -74,6 +95,17 @@ public class Ast {
       this.value = value;
     }
 
+    @Override public boolean equals(Object o) {
+      return o == this
+          || o instanceof Interval
+          && value.equals(((Interval) o).value)
+          && unit == ((Interval) o).unit;
+    }
+
+    @Override public int hashCode() {
+      return Objects.hash(value, unit);
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -83,7 +115,27 @@ public class Ast {
     }
   }
 
-  /** Date range, e.g. "2018/05/10 for 3 days". */
+  /** Date range, e.g. "2018/05/10 to 2018/05/13". */
+  public static class Range extends AstNode {
+    public final Date start;
+    public final Date end;
+
+    Range(Date start, Date end) {
+      super(Pos.ZERO, Op.RANGE);
+      this.start = start;
+      this.end = end;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  /** Date range based on interval, e.g. "2018/05/10 for 3 days". */
   public static class RangeInterval extends AstNode {
     public final Date start;
     public final Ast.Interval end;
@@ -309,13 +361,13 @@ public class Ast {
     }
   }
 
-  /** Range. */
-  public static class Range extends AstNode {
+  /** Numeric range. */
+  public static class NumericRange extends AstNode {
     public final boolean is;
     public final BigDecimal left;
     public final BigDecimal right;
 
-    public Range(Op op, String id, boolean is, BigDecimal left,
+    NumericRange(Op op, String id, boolean is, BigDecimal left,
         BigDecimal right) {
       super(Pos.ZERO, op);
       this.is = is;
@@ -403,9 +455,160 @@ public class Ast {
   public static class Absolute extends AstNode {
     public final Date date;
 
-    public Absolute(Date date, boolean before) {
+    Absolute(Date date, boolean before) {
       super(Pos.ZERO, before ? Op.BEFORE : Op.AFTER);
       this.date = date;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  public static class RelativeRange extends AstNode {
+    public final boolean fromNow; // false means 'ago'
+    public final Interval startInterval;
+    public final Interval endInterval;
+
+    RelativeRange(boolean fromNow, Ast.Interval startInterval,
+        Ast.Interval endInterval) {
+      super(Pos.ZERO, Op.RELATIVE);
+      this.fromNow = fromNow;
+      this.startInterval = startInterval;
+      this.endInterval = endInterval;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+
+    public String intervalType() {
+      return fromNow ? "from now" : "ago";
+    }
+  }
+
+  /** E.g. "before 2 months from now", "before 3 days ago". */
+  public static class RelativeUnit extends AstNode {
+    public final boolean fromNow; // false means 'ago'
+    public final BigDecimal value;
+    public final DatetimeUnit unit;
+
+    RelativeUnit(boolean before, boolean fromNow, BigDecimal value,
+        DatetimeUnit unit) {
+      super(Pos.ZERO, before ? Op.BEFORE : Op.AFTER);
+      this.fromNow = fromNow;
+      this.value = value;
+      this.unit = unit;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  public static class Past extends AstNode {
+    public final BigDecimal value;
+    public final DatetimeUnit unit;
+    public final boolean complete;
+
+    Past(BigDecimal value, DatetimeUnit unit, boolean complete) {
+      super(Pos.ZERO, Op.PAST);
+      this.value = value;
+      this.unit = unit;
+      this.complete = complete;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  public static class Relative extends AstNode {
+    public final BigDecimal value;
+    public final DatetimeUnit unit;
+
+    Relative(Op op, BigDecimal value, DatetimeUnit unit) {
+      super(Pos.ZERO, op);
+      checkArgument(op == Op.FROM_NOW || op == Op.PAST_AGO);
+      this.value = value;
+      this.unit = unit;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  /** This or next unit, e.g. "this day", "next month". */
+  public static class ThisUnit extends AstNode {
+    public final DatetimeUnit unit;
+
+    ThisUnit(Op op, DatetimeUnit unit) {
+      super(Pos.ZERO, op);
+      checkArgument(op == Op.THIS || op == Op.BEFORE_THIS || op == Op.AFTER_THIS
+          || op == Op.NEXT || op == Op.BEFORE_NEXT || op == Op.AFTER_NEXT
+          || op == Op.LAST || op == Op.BEFORE_LAST || op == Op.AFTER_LAST);
+      this.unit = unit;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  /** This range, e.g. "this day to second". */
+  public static class ThisRange extends AstNode {
+    public final DatetimeUnit startInterval;
+    public final DatetimeUnit endInterval;
+
+    ThisRange(DatetimeUnit startInterval, DatetimeUnit endInterval) {
+      super(Pos.ZERO, Op.THIS_RANGE);
+      this.startInterval = startInterval;
+      this.endInterval = endInterval;
+    }
+
+    @Override public AstWriter unparse(AstWriter writer) {
+      throw new AssertionError();
+    }
+
+    @Override public void accept(AstVisitor visitor, @Nullable AstNode parent) {
+      throw new AssertionError();
+    }
+  }
+
+  /** This range, e.g. "this day to second". */
+  public static class LastInterval extends AstNode {
+    public final BigDecimal value;
+    public final DatetimeUnit unit;
+
+    LastInterval(BigDecimal value, DatetimeUnit unit) {
+      super(Pos.ZERO, Op.LAST_INTERVAL);
+      this.value = value;
+      this.unit = unit;
     }
 
     @Override public AstWriter unparse(AstWriter writer) {

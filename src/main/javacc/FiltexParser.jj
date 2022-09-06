@@ -31,16 +31,12 @@ import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.AstNode;
 import net.hydromatic.filtex.ast.Bound;
 import net.hydromatic.filtex.ast.Date;
-import net.hydromatic.filtex.ast.Datetime;
 import net.hydromatic.filtex.ast.DatetimeUnit;
 import net.hydromatic.filtex.ast.Location;
 import net.hydromatic.filtex.ast.Op;
 import net.hydromatic.filtex.ast.Pos;
 import net.hydromatic.filtex.ast.Time;
 import net.hydromatic.filtex.ast.Unit;
-import net.hydromatic.filtex.util.Pair;
-
-import com.google.common.collect.ImmutableList;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -49,10 +45,8 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 import static net.hydromatic.filtex.ast.AstBuilder.ast;
@@ -159,18 +153,17 @@ AstNode dateTerm() : {
 | node = yearQuarter() { return node; }
 | node = yearMonth() { return node; }
 | node = year() { return node; }
-//| node = relativeRange() { return node; }
+| node = relativeRange() { return node; }
 //| node = fromNow() { return node; }
-//| node = pastAgo() { return node; }
-//| node = past() { return node; }
-//| node = thisRange() { return node; }
-//| node = thisNext() { return node; }
-//| node = last() { return node; }
-//| node = lastInterval() { return node; }
+| // Lookahead is required to choose between thisRange (e.g. "this day to
+  // hour") and thisNext (e.g. "this day")
+  LOOKAHEAD(3)
+  node = thisRange() { return node; }
+| node = thisNext() { return node; }
+| node = last() { return node; }
 //| node = dayInterval() { return node; }
-//| node = beforeAfterThisNextLast() { return node; }
-//| node = dayExpressions() { return node; }
-| node = beforeAfter() { return node; }
+| node = dayExpression() { return node; }
+| node = absoluteBeforeAfter() { return node; }
 | node = fiscalQuarter() { return node; }
 | node = fiscalYear() { return node; }
 | node = nulls() { return node; }
@@ -195,6 +188,32 @@ BigDecimal positiveInteger() : {}
   <NUMBER_LITERAL> { return new BigDecimal(token.image); }
 }
 
+// "today", "friday"
+AstNode dayExpression() : {
+  final String day;
+}
+{
+  (
+    day = dayOfWeekKeyword()
+  | day = dayKeyword()
+  ) { return ast.day(day); }
+}
+
+String dayKeyword() : {}
+{
+  (<TODAY> | <YESTERDAY> | <TOMORROW>) {
+    return token.image.toLowerCase(Locale.ROOT);
+  }
+}
+
+String dayOfWeekKeyword() : {}
+{
+  ( <MONDAY> | <TUESDAY> | <WEDNESDAY> | <THURSDAY> | <FRIDAY> | <SATURDAY>
+  | <SUNDAY>) {
+    return token.image.toLowerCase(Locale.ROOT);
+  }
+}
+
 AstNode year() : {}
 {
   LOOKAHEAD( { getToken(1).kind == NUMBER_LITERAL
@@ -213,10 +232,11 @@ AstNode fiscalQuarter() : {}
 {
   <FY_YEAR_QUARTER> {
     return ast.fiscalQuarter(Integer.parseInt(token.image.substring(2, 6)),
-        token.image.substring(7, 9));
+        Integer.parseInt(token.image.substring(8, 9)));
   }
 }
 
+// "2018/05", "2018/05 for 2 months"
 AstNode yearMonth() : {
   final int year;
   final int month;
@@ -234,11 +254,12 @@ AstNode yearMonth() : {
   )
 }
 
+// "2018-Q4"
 AstNode yearQuarter() : {}
 {
-  "[0-9]0-9][0-9][0-9]Q[1-4]" {
+  <YEAR_QUARTER> {
     return ast.quarter(Integer.parseInt(token.image.substring(0, 4)),
-        token.image.substring(5, 7));
+        Integer.parseInt(token.image.substring(6, 7)));
   }
 }
 
@@ -251,6 +272,8 @@ DatetimeUnit intervalUnit() : {
 | unit = dateUnit() { return unit; }
 }
 
+
+// break units as used by the this/next/last expressions
 DatetimeUnit timeUnit() : {}
 {
   ("hour" | "hours" | "minute" | "minutes" | "second" | "seconds") {
@@ -271,31 +294,142 @@ DatetimeUnit dateUnit() : {}
   }
 }
 
-// "after 2018/05/10"
+// "this day", "next week"
+AstNode thisNext() : {
+  final Op op;
+  final DatetimeUnit unit;
+}
+{
+  ( <THIS> { op = Op.THIS; }
+  | <NEXT> { op = Op.NEXT; }
+  )
+  unit = dateUnit() {
+    return ast.thisUnit(op, unit);
+  }
+}
+
+// "last year",
+// "last 3 days"
+AstNode last() : {
+  final Ast.Interval interval;
+  final DatetimeUnit unit;
+}
+{
+  <LAST>
+  ( unit = intervalUnit() {
+      return ast.thisUnit(Op.LAST, unit);
+    }
+  | interval = nInterval() {
+      return ast.lastInterval(interval.value, interval.unit);
+    }
+  )
+}
+
+// "this day to second"
+AstNode thisRange() : {
+ final DatetimeUnit startInterval;
+ final DatetimeUnit endInterval;
+}
+{
+  <THIS> startInterval = intervalUnit() <TO> endInterval = intervalUnit() {
+    return ast.thisRange(startInterval, endInterval);
+  }
+}
+
+// True for "from now", false for "ago"
+boolean intervalType() : {}
+{
+  <AGO> { return false; }
+| <FROM> <NOW> { return true; }
+}
+
+// "3 days from now for 2 weeks"
+// "3 months ago for 2 days"
+// "3 days ago for 3 days" (complete)
+// "3 days"
+// "3 days ago"
+AstNode relativeRange() : {
+  final Ast.Interval startInterval;
+  final boolean fromNow;
+  final Ast.Interval endInterval;
+}
+{
+  startInterval = nInterval()
+  (
+    fromNow = intervalType()
+    (
+      <FOR> endInterval = nInterval()  {
+        if (startInterval.equals(endInterval)) {
+          return ast.past(startInterval.value, startInterval.unit, true);
+        }
+        return ast.relativeRange(fromNow, startInterval, endInterval);
+      }
+    |
+      { return ast.relative(fromNow, startInterval); }
+    )
+  |
+    { return ast.past(startInterval.value, startInterval.unit); }
+  )
+}
+
+// Returns true for "before", false for "after"
+boolean beforeAfter() : {}
+{
+  <BEFORE> { return true; }
+| <AFTER> { return false; }
+}
+
+// "after 2018/05/10",
 // "before 2018/05/10"
-AstNode beforeAfter() : {
+// "before 3 days"
+// "before 3 days ago"
+// "before 3 days from now"
+AstNode absoluteBeforeAfter() : {
   final boolean before;
+  final Ast.Interval interval;
+  final boolean fromNow;
+  final Op op;
+  final DatetimeUnit unit;
   final Date date;
 }
 {
-  ( <BEFORE> { before = true;}
-  | <AFTER> { before = false; }
+  before = beforeAfter()
+  (
+    interval = nInterval()
+    ( fromNow = intervalType()
+    | { fromNow = false; }
+    )
+    { return ast.relativeUnit(before, fromNow, interval.value, interval.unit); }
+  | op = thisNextLast()
+    unit = dateUnit() {
+      return ast.relative1(before, op, unit);
+    }
+  | date = datetime() { return ast.absolute(date, before); }
   )
-  date = datetime() {
-    return ast.absolute(date, before);
-  }
+}
+
+Op thisNextLast() : {}
+{
+  <THIS> { return Op.THIS; }
+| <LAST> { return Op.LAST; }
+| <NEXT> { return Op.NEXT; }
 }
 
 // "2019/01/01 08:45:00" (on)
 // or "2018/05/10 for 5 months" (rangeInterval)
+// or "2018-05-18 12:00:00 to 2018-05-18 14:00:00" (range)
 AstNode onDatetime() : {
   final Date start;
-  final Ast.Interval end;
+  final Ast.Interval endInterval;
+  final Date end;
 }
 {
   start = datetime()
   (
-    <FOR> end = nInterval() { return ast.rangeInterval(start, end); }
+    <FOR> endInterval = nInterval() {
+      return ast.rangeInterval(start, endInterval);
+    }
+  | <TO> end = datetime() { return ast.range(start, end); }
   | { return ast.on(start); }
   )
 }
@@ -641,6 +775,7 @@ BigDecimal number() : {}
 | < YEAR_MONTH: <YYYY> <DATE_SEP> <MM> >
 | < YYYY_MM_DD: <YYYY> <DATE_SEP> <MM> <DATE_SEP> <DD> >
 | < HH_MM_SS: <HH> <TIME_SEP> <MI> (<TIME_SEP> <SS>)? >
+| < YEAR_QUARTER: ["0"-"9"]["0"-"9"]["0"-"9"]["0"-"9"] "-Q" ["1"-"4"] >
 | < FY_YEAR: "FY" <YYYY> >
 | < FY_YEAR_QUARTER: "FY" ["0"-"9"]["0"-"9"]["0"-"9"]["0"-"9"] "-Q" ["1"-"4"] >
 
@@ -652,6 +787,8 @@ BigDecimal number() : {}
       "." (["0"-"9"])+
       (["e", "E"] ("-")?(["0"-"9"])+)? >
 | < QUOTED_STRING: <DOUBLE_QUOTE> ( (~["\"", "\\"]) | ("\\" "\"") | ("\\" "\\") )* <DOUBLE_QUOTE> >
+| < DOUBLE_QUOTE: "\"" >
+| < CHAR_LITERAL: ("#") <QUOTED_STRING> >
 }
 
 <DEFAULT> SKIP :
@@ -669,25 +806,41 @@ BigDecimal number() : {}
 
 <DEFAULT> TOKEN :
 {
-  < DOUBLE_QUOTE: "\"" >
-| < CHAR_LITERAL: ("#") <QUOTED_STRING> >
-| < AFTER: "AFTER" >
+  < AFTER: "AFTER" >
+| < AGO: "AGO" >
+| < AND: "AND" >
 | < BEFORE: "BEFORE" >
 | < BOX: "BOX" >
 | < FOR: "FOR" >
 | < FROM: "FROM" >
 | < INSIDE: "INSIDE" >
+| < LAST: "LAST" >
+| < NEXT: "NEXT" >
 | < NOT: "NOT" >
-| < AND: "AND" >
+| < NOW: "NOW" >
 | < FEET: "FEET" >
+| < KILOMETERS: "KILOMETERS" >
 | < METERS: "METERS" >
 | < MILES: "MILES" >
-| < KILOMETERS: "KILOMETERS" >
 | < OR: "OR" >
+| < THIS: "THIS" >
+| < TO: "TO" >
+
+| < MONDAY: "MONDAY" >
+| < TUESDAY: "TUESDAY" >
+| < WEDNESDAY: "WEDNESDAY" >
+| < THURSDAY: "THURSDAY" >
+| < FRIDAY: "FRIDAY" >
+| < SATURDAY: "SATURDAY" >
+| < SUNDAY: "SUNDAY" >
+
+| < TODAY: "TODAY" >
+| < YESTERDAY: "YESTERDAY" >
+| < TOMORROW: "TOMORROW" >
+
 | < BANG_EQ: "!=" >
 | < LT_GT: "<>" >
 | < COMMA: "," >
-| < TO: "TO" >
 | < DOUBLE_LBRACE: "{{" >
 | < DOUBLE_RBRACE: "}}" >
 | < NULL: "NULL" >

@@ -52,7 +52,7 @@ public class DateTest {
             d -> d.op != Op.ON, d -> d.year)
         .putIfInstanceIf(prefix + "date.year", Ast.DateLiteral.class, node,
             d -> d.op == Op.ON, d -> d.year)
-        .putIfInstance(prefix + "quarter", Ast.DateLiteral.class, node,
+        .putIfInstance(prefix + "quarter.quarter", Ast.DateLiteral.class, node,
             d -> d.quarter)
         .putIfInstanceIf(prefix + "month", Ast.DateLiteral.class, node,
             d -> d.op != Op.ON, d -> d.month)
@@ -60,6 +60,7 @@ public class DateTest {
             d -> d.op == Op.ON, d -> d.month)
         .putIfInstanceIf(prefix + "date.day", Ast.DateLiteral.class, node,
             d -> d.op == Op.ON, d -> d.day)
+        .putIfInstance(prefix + "day", Ast.DayLiteral.class, node, n -> n.day)
         .putIfInstance(prefix + "unit", Ast.Interval.class, node, i ->
             i.unit.singular)
         .putIfInstance(prefix + "value", Ast.Interval.class, node, i -> i.value)
@@ -74,11 +75,43 @@ public class DateTest {
         .putIfInstance(prefix + "minute", Datetime.class, node, d -> d.minute)
         .putIfInstance(prefix + "second", Datetime.class, node, d -> d.second)
         .putIfInstance(prefix + "range", Ast.Absolute.class, node,
-            n -> "absolute");
+            n -> "absolute")
+        .putIfInstance(prefix + "intervalType", Ast.RelativeRange.class, node,
+            Ast.RelativeRange::intervalType)
+        .putIfInstance(prefix + "range", Ast.RelativeUnit.class, node,
+            n -> "relative")
+        .putIfInstance(prefix + "fromnow", Ast.RelativeUnit.class, node,
+            n -> n.fromNow)
+        .putIfInstance(prefix + "unit", Ast.RelativeUnit.class, node,
+            n -> n.unit.singular)
+        .putIfInstance(prefix + "value", Ast.RelativeUnit.class, node,
+            n -> n.value)
+        .putIfInstance(prefix + "unit", Ast.Past.class, node,
+            n -> n.unit.singular)
+        .putIfInstance(prefix + "value", Ast.Past.class, node, n -> n.value)
+        .putIfInstanceIf(prefix + "complete", Ast.Past.class, node,
+            n -> n.complete, n -> n.complete)
+        .putIfInstance(prefix + "unit", Ast.Relative.class, node,
+            n -> n.unit.singular)
+        .putIfInstance(prefix + "value", Ast.Relative.class, node, n -> n.value)
+        .putIfInstance(prefix + "unit", Ast.ThisUnit.class, node,
+            n -> n.unit.singular)
+        .putIfInstance(prefix + "startInterval", Ast.ThisRange.class, node,
+            n -> n.startInterval.singular)
+        .putIfInstance(prefix + "endInterval", Ast.ThisRange.class, node,
+            n -> n.endInterval.singular)
+        .putIfInstance(prefix + "unit", Ast.LastInterval.class, node,
+            n -> n.unit.singular)
+        .putIfInstance(prefix + "value", Ast.LastInterval.class, node,
+            n -> n.value);
     if (node instanceof Ast.RangeInterval) {
       // TODO convert the following to new method .recurseIfInstance
       digest(digester, prefix + "end.", ((Ast.RangeInterval) node).end);
       digest(digester, prefix + "start.", ((Ast.RangeInterval) node).start);
+    }
+    if (node instanceof Ast.Range) {
+      digest(digester, prefix + "end.", ((Ast.Range) node).end);
+      digest(digester, prefix + "start.", ((Ast.Range) node).start);
     }
     if (node instanceof Ast.MonthInterval) {
       digest(digester, prefix + "end.", ((Ast.MonthInterval) node).end);
@@ -86,14 +119,19 @@ public class DateTest {
     if (node instanceof Ast.Absolute) {
       digest(digester, prefix + "date.", ((Ast.Absolute) node).date);
     }
+    if (node instanceof Ast.RelativeRange) {
+      digest(digester, prefix + "endInterval.",
+          ((Ast.RelativeRange) node).endInterval);
+      digest(digester, prefix + "startInterval.",
+          ((Ast.RelativeRange) node).startInterval);
+    }
     return digester;
   }
 
   @Disabled
-  @Test void testLocationGrammarCanParse() {
-    forEach(TestValues.DATE_EXPRESSION_TEST_ITEMS, item ->
-        checkDateItem(item.expression, item.output, item.describe, item.type,
-            item.digest));
+  @Test void testDateGrammarCanParse() {
+    forEach(TestValues.DATE_EXPRESSION_TEST_ITEMS, i ->
+        checkDateItem(i.expression, i.output, i.describe, i.type, i.digest));
   }
 
   void checkDateItem(String expression, String expectedOutput,
@@ -134,33 +172,48 @@ public class DateTest {
     assertThat(dateOutput, is(expectedOutput));
   }
 
-  @Disabled
-  @Test void testDateGrammarCanParse() {
-    forEach(TestValues.DATE_EXPRESSION_TEST_ITEMS, i ->
-        checkDateItem(i.expression, i.output, i.describe, i.type, i.digest));
-  }
-
   static final List<TestValues.Pair> BASIC_DATES =
       TestValues.Pair.builder()
-          .add("this day", "xx")
-          .add("this day to second", "xx")
-          .add("this year to second", "xx")
-          .add("this year to day", "xx")
-          .add("3 days", "xx")
-          .add("3 days ago", "xx")
-          .add("3 months ago for 2 days", "xx")
-          .add("before 3 days ago", "xx")
-          .add("before 2018-01-01 12:00:00", "xx")
-          .add("after 2018-10-05", "xx")
-          .add("2018-05-18 12:00:00 to 2018-05-18 14:00:00", "xx")
-          .add("2018-01-01 12:00:00 for 3 days", "xx")
-          .add("today", "xx")
-          .add("yesterday", "xx")
-          .add("tomorrow", "xx")
-          .add("Monday", "xx")
-          .add("next week", "xx")
-          .add("3 days from now", "xx")
-          .add("3 days from now for 2 weeks", "xx")
+          .add("this day", "{type=this, unit=day}")
+          .add("this day to second",
+              "{endInterval=second, startInterval=day, type=thisRange}")
+          .add("this year to second",
+              "{endInterval=second, startInterval=year, type=thisRange}")
+          .add("this year to day",
+              "{endInterval=day, startInterval=year, type=thisRange}")
+          .add("3 days", "{type=past, unit=day, value=3}")
+          .add("3 days ago", "{type=pastAgo, unit=day, value=3}")
+          .add("3 months ago for 2 days",
+              "{endInterval={type=interval, unit=day, value=2},"
+                  + " intervalType=ago,"
+                  + " startInterval={type=interval, unit=month, value=3},"
+                  + " type=relative}")
+          .add("before 3 days ago",
+              "{fromnow=false, range=relative, type=before, unit=day, value=3}")
+          .add("before 2018-01-01 12:00:00",
+              "{date={day=1, hour=12, minute=0, month=1, second=0, year=2018},"
+                  + " range=absolute, type=before}")
+          .add("after 2018-10-05",
+              "{date={day=5, month=10, year=2018}, range=absolute, type=after}")
+          .add("2018-05-18 12:00:00 to 2018-05-18 14:00:00",
+              "{end={day=18, hour=14, minute=0, month=5, second=0, year=2018}, "
+                  + "start={day=18, hour=12, minute=0, month=5, second=0,"
+                  + " year=2018}, type=range}")
+          .add("2018-01-01 12:00:00 for 3 days",
+              "{end={type=interval, unit=day, value=3}, "
+                  + "start={day=1, hour=12, minute=0, month=1, second=0,"
+                  + " year=2018}, type=rangeInterval}")
+          .add("today", "{day=today, type=day}")
+          .add("yesterday", "{day=yesterday, type=day}")
+          .add("tomorrow", "{day=tomorrow, type=day}")
+          .add("Monday", "{day=monday, type=day}")
+          .add("next week", "{type=next, unit=week}")
+          .add("3 days from now", "{type='from now', unit=day, value=3}")
+          .add("3 days from now for 2 weeks",
+              "{endInterval={type=interval, unit=week, value=2},"
+                  + " intervalType='from now',"
+                  + " startInterval={type=interval, unit=day, value=3},"
+                  + " type=relative}")
           .build();
 
   void checkExpression(String expression, String expectedDigest) {
@@ -170,7 +223,6 @@ public class DateTest {
     // TODO expect(summary('date', expression)).not.toBe('')
   }
 
-  @Disabled
   @Test void testDateGrammarCanParseBasicDate() {
     forEach(BASIC_DATES, pair ->
         checkExpression(pair.expression, pair.type));
@@ -201,7 +253,8 @@ public class DateTest {
                   + " start={day=10, month=5, year=2018}, type=rangeInterval}")
           .add("2018", "{type=year, year=2018}")
           .add("FY2018", "{type=fiscalYear, year=2018}")
-          .add("FY2018-Q1", "{quarter=Q1, type=fiscalQuarter, year=2018}")
+          .add("FY2018-Q1",
+              "{quarter={quarter=1}, type=fiscalQuarter, year=2018}")
           .build();
 
   @Test void testDateGrammarCanParseAbsoluteDate() {
@@ -211,12 +264,15 @@ public class DateTest {
 
   static final List<TestValues.Pair> SECONDS =
       TestValues.Pair.builder()
-          .add("1 second", "xx")
-          .add("60 seconds", "xx")
-          .add("60 seconds ago for 1 second", "xx")
+          .add("1 second", "{type=past, unit=second, value=1}")
+          .add("60 seconds", "{type=past, unit=second, value=60}")
+          .add("60 seconds ago for 1 second",
+              "{endInterval={type=interval, unit=second, value=1},"
+                  + " intervalType=ago,"
+                  + " startInterval={type=interval, unit=second, value=60},"
+                  + " type=relative}")
           .build();
 
-  @Disabled
   @Test void testDateGrammarCanParseSeconds() {
     forEach(SECONDS, pair ->
         checkExpression(pair.expression, pair.type));
@@ -224,12 +280,15 @@ public class DateTest {
 
   static final List<TestValues.Pair> MINUTES =
       TestValues.Pair.builder()
-          .add("1 minute", "xx")
-          .add("60 minutes", "xx")
-          .add("60 minutes ago for 1 minute", "xx")
+          .add("1 minute", "{type=past, unit=minute, value=1}")
+          .add("60 minutes", "{type=past, unit=minute, value=60}")
+          .add("60 minutes ago for 1 minute",
+              "{endInterval={type=interval, unit=minute, value=1},"
+                  + " intervalType=ago,"
+                  + " startInterval={type=interval, unit=minute, value=60},"
+                  + " type=relative}")
           .build();
 
-  @Disabled
   @Test void testDateGrammarCanParseMinutes() {
     forEach(MINUTES, pair ->
         checkExpression(pair.expression, pair.type));
@@ -237,12 +296,15 @@ public class DateTest {
 
   static final List<TestValues.Pair> HOURS =
       TestValues.Pair.builder()
-          .add("1 hour", "xx")
-          .add("24 hours", "xx")
-          .add("24 hours ago for 1 hour", "xx")
+          .add("1 hour", "{type=past, unit=hour, value=1}")
+          .add("24 hours", "{type=past, unit=hour, value=24}")
+          .add("24 hours ago for 1 hour",
+              "{endInterval={type=interval, unit=hour, value=1},"
+                  + " intervalType=ago,"
+                  + " startInterval={type=interval, unit=hour, value=24},"
+                  + " type=relative}")
           .build();
 
-  @Disabled
   @Test void testDateGrammarCanParseHours() {
     forEach(HOURS, pair ->
         checkExpression(pair.expression, pair.type));
@@ -250,15 +312,15 @@ public class DateTest {
 
   static final List<TestValues.Pair> DAYS =
       TestValues.Pair.builder()
-          .add("today", "xx")
-          .add("2 days", "xx")
-          .add("1 day ago", "xx")
-          .add("7 days ago for 7 days", "xx")
-          .add("last 3 days", "xx")
-          .add("7 days from now", "xx")
+          .add("today", "{day=today, type=day}")
+          .add("2 days", "{type=past, unit=day, value=2}")
+          .add("1 day ago", "{type=pastAgo, unit=day, value=1}")
+          .add("7 days ago for 7 days",
+              "{complete=true, type=past, unit=day, value=7}")
+          .add("last 3 days", "{type=lastInterval, unit=day, value=3}")
+          .add("7 days from now", "{type='from now', unit=day, value=7}")
           .build();
 
-  @Disabled
   @Test void testDateGrammarCanParseDays() {
     forEach(DAYS, pair ->
         checkExpression(pair.expression, pair.type));
@@ -266,18 +328,18 @@ public class DateTest {
 
   static final List<TestValues.Pair> WEEKS =
       TestValues.Pair.builder()
-          .add("1 week", "xx")
-          .add("this week", "xx")
-          .add("before this week", "xx")
-          .add("after this week", "xx")
-          .add("next week", "xx")
-          .add("2 weeks", "xx")
-          .add("2 weeks ago for 2 weeks", "xx")
-          .add("last week", "xx")
-          .add("1 week ago", "xx")
+          .add("1 week", "{type=past, unit=week, value=1}")
+          .add("this week", "{type=this, unit=week}")
+          .add("before this week", "{type=before_this, unit=week}")
+          .add("after this week", "{type=after_this, unit=week}")
+          .add("next week", "{type=next, unit=week}")
+          .add("2 weeks", "{type=past, unit=week, value=2}")
+          .add("2 weeks ago for 2 weeks",
+              "{complete=true, type=past, unit=week, value=2}")
+          .add("last week", "{type=last, unit=week}")
+          .add("1 week ago", "{type=pastAgo, unit=week, value=1}")
           .build();
 
-  @Disabled
   @Test void testDateGrammarCanParseWeeks() {
     forEach(WEEKS, pair ->
         checkExpression(pair.expression, pair.type));
@@ -285,21 +347,31 @@ public class DateTest {
 
   static final List<TestValues.Pair> MONTHS =
       TestValues.Pair.builder()
-          .add("1 month", "xx")
-          .add("this month", "xx")
-          .add("2 months", "xx")
-          .add("last month", "xx")
-          .add("2 months ago", "xx")
-          .add("2 months ago for 2 months", "xx")
-          .add("before 2 months ago", "xx")
-          .add("before 2 months", "xx")
-          .add("before 2 months from now", "xx")
-          .add("next month", "xx")
-          .add("2 months from now", "xx")
-          .add("6 months from now for 3 months", "xx")
+          .add("1 month", "{type=past, unit=month, value=1}")
+          .add("this month", "{type=this, unit=month}")
+          .add("2 months", "{type=past, unit=month, value=2}")
+          .add("last month", "{type=last, unit=month}")
+          .add("2 months ago", "{type=pastAgo, unit=month, value=2}")
+          .add("2 months ago for 2 months",
+              "{complete=true, type=past, unit=month, value=2}")
+          .add("before 2 months ago",
+              "{fromnow=false, range=relative, type=before, unit=month,"
+                  + " value=2}")
+          .add("before 2 months",
+              "{fromnow=false, range=relative, type=before, unit=month,"
+                  + " value=2}")
+          .add("before 2 months from now",
+              "{fromnow=true, range=relative, type=before, unit=month,"
+                  + " value=2}")
+          .add("next month", "{type=next, unit=month}")
+          .add("2 months from now", "{type='from now', unit=month, value=2}")
+          .add("6 months from now for 3 months",
+              "{endInterval={type=interval, unit=month, value=3},"
+                  + " intervalType='from now',"
+                  + " startInterval={type=interval, unit=month, value=6},"
+                  + " type=relative}")
           .build();
 
-  @Disabled
   @Test void testDateGrammarCanParseMonths() {
     forEach(MONTHS, pair ->
         checkExpression(pair.expression, pair.type));
@@ -307,18 +379,21 @@ public class DateTest {
 
   static final List<TestValues.Pair> QUARTERS =
       TestValues.Pair.builder()
-          .add("1 quarter", "xx")
-          .add("this quarter", "xx")
-          .add("2 quarters", "xx")
-          .add("last quarter", "xx")
-          .add("2 quarters ago", "xx")
-          .add("before 2 quarters ago", "xx")
-          .add("next quarter", "xx")
-          .add("2018-07-01 for 1 quarter", "xx")
-          .add("2018-Q4", "xx")
+          .add("1 quarter", "{type=past, unit=quarter, value=1}")
+          .add("this quarter", "{type=this, unit=quarter}")
+          .add("2 quarters", "{type=past, unit=quarter, value=2}")
+          .add("last quarter", "{type=last, unit=quarter}")
+          .add("2 quarters ago", "{type=pastAgo, unit=quarter, value=2}")
+          .add("before 2 quarters ago",
+              "{fromnow=false, range=relative, type=before, unit=quarter,"
+                  + " value=2}")
+          .add("next quarter", "{type=next, unit=quarter}")
+          .add("2018-07-01 for 1 quarter",
+              "{end={type=interval, unit=quarter, value=1},"
+                  + " start={day=1, month=7, year=2018}, type=rangeInterval}")
+          .add("2018-Q4", "{quarter={quarter=4}, type=quarter, year=2018}")
           .build();
 
-  @Disabled
   @Test void testDateGrammarCanParseQuarters() {
     forEach(QUARTERS, pair ->
         checkExpression(pair.expression, pair.type));
@@ -326,17 +401,19 @@ public class DateTest {
 
   static final List<TestValues.Pair> YEARS =
       TestValues.Pair.builder()
-          .add("1 year", "xx")
-          .add("this year", "xx")
-          .add("next year", "xx")
-          .add("2 years", "xx")
-          .add("2 years ago for 2 years", "xx")
-          .add("last year", "xx")
-          .add("2 years ago", "xx")
-          .add("before 2 years ago", "xx")
+          .add("1 year", "{type=past, unit=year, value=1}")
+          .add("this year", "{type=this, unit=year}")
+          .add("next year", "{type=next, unit=year}")
+          .add("2 years", "{type=past, unit=year, value=2}")
+          .add("2 years ago for 2 years",
+              "{complete=true, type=past, unit=year, value=2}")
+          .add("last year", "{type=last, unit=year}")
+          .add("2 years ago", "{type=pastAgo, unit=year, value=2}")
+          .add("before 2 years ago",
+              "{fromnow=false, range=relative, type=before, unit=year,"
+                  + " value=2}")
           .build();
 
-  @Disabled
   @Test void testDateGrammarCanParseYears() {
     forEach(YEARS, pair ->
         checkExpression(pair.expression, pair.type));

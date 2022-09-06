@@ -23,10 +23,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import static net.hydromatic.filtex.Filtex.parseFilterExpression;
 import static net.hydromatic.filtex.TestValues.forEach;
@@ -83,6 +85,8 @@ public class LocationTest {
 
   /** Helps generate a digest of the properties in an AstNode. */
   static class Digester {
+    static final Pattern ALPHANUMERIC = Pattern.compile("[a-zA-Z0-9_]*");
+
     final SortedMap<String, Object> map = new TreeMap<>();
 
     Digester put(String key, Object value) {
@@ -91,13 +95,17 @@ public class LocationTest {
     }
 
     @Override public String toString() {
-      // Convert map "{a=1, b.x=2, b.y=3}" to map2 "{a=1, b={x=2, y=3}}"
+      // Convert map "{a=p,q, b.x=2, b.y=3}" to map2 "{a='p,q', b={x=2, y=3}}"
       final SortedMap<String, Object> map2 = new TreeMap<>();
       map.forEach((key, value) -> {
+        if (value instanceof String
+            && !ALPHANUMERIC.matcher((String) value).matches()) {
+          value = "'" + value + "'";
+        }
         if (key.contains(".")) {
-          int i = key.indexOf('.');
-          @SuppressWarnings("unchecked") SortedMap<String, Object> subMap =
-              (SortedMap<String, Object>)
+          final int i = key.indexOf('.');
+          @SuppressWarnings("unchecked") final Map<String, Object> subMap =
+              (Map<String, Object>)
                   map2.computeIfAbsent(key.substring(0, i),
                       k -> new TreeMap<>());
           subMap.put(key.substring(i + 1), value);

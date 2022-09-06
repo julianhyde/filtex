@@ -26,7 +26,7 @@ interface AstVisitor {
 
   void visit(Ast.Call0 call0, @Nullable AstNode parent);
 
-  void visit(Ast.Range range, @Nullable AstNode parent);
+  void visit(Ast.NumericRange range, @Nullable AstNode parent);
 
   void visit(Ast.Comparison literal, @Nullable AstNode parent);
 

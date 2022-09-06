@@ -80,7 +80,7 @@ public class Asts {
             (literal.is() ? orItems : andItems).add(literal);
           }
 
-          @Override public void visit(Ast.Range range,
+          @Override public void visit(Ast.NumericRange range,
               @Nullable AstNode parent) {
             List<AstNode> list = range.is ? orItems : andItems;
             if (range.left != null && range.right != null) {
@@ -140,8 +140,8 @@ public class Asts {
       if (call2.right != null) {
         inorder(call2.right, node, nodeHandler);
       }
-    } else if (node instanceof Ast.Range) {
-      Ast.Range call2 = (Ast.Range) node;
+    } else if (node instanceof Ast.NumericRange) {
+      Ast.NumericRange call2 = (Ast.NumericRange) node;
       if (call2.left != null) {
         inorder(ast.numberLiteral(true, call2.left), node, nodeHandler);
       }
@@ -184,7 +184,8 @@ public class Asts {
         super.visit(literal, parent);
       }
 
-      @Override public void visit(Ast.Range range, @Nullable AstNode parent) {
+      @Override public void visit(Ast.NumericRange range,
+          @Nullable AstNode parent) {
         consumer.accept(range);
         super.visit(range, parent);
       }
@@ -306,7 +307,8 @@ public class Asts {
       super.visit(literal, parent);
     }
 
-    @Override public void visit(Ast.Range range, @Nullable AstNode parent) {
+    @Override public void visit(Ast.NumericRange range,
+        @Nullable AstNode parent) {
       handle(range);
       super.visit(range, parent);
     }

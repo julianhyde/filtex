@@ -64,6 +64,11 @@ public enum AstBuilder {
     return new Ast.Comparison(is, op, ImmutableList.copyOf(value));
   }
 
+  /** Creates a day of week literal. */
+  public AstNode day(String day) {
+    return new Ast.DayLiteral(day);
+  }
+
   /** Creates a year date literal. */
   public AstNode year(int year) {
     return new Ast.DateLiteral(Op.YEAR, year, null, null, null, null, null,
@@ -77,13 +82,13 @@ public enum AstBuilder {
   }
 
   /** Creates a year-quarter date literal. */
-  public AstNode quarter(int year, String quarter) {
+  public AstNode quarter(int year, int quarter) {
     return new Ast.DateLiteral(Op.QUARTER, year, quarter, null, null, null,
         null, null);
   }
 
   /** Creates a fiscal year-quarter date literal. */
-  public AstNode fiscalQuarter(int year, String quarter) {
+  public AstNode fiscalQuarter(int year, int quarter) {
     return new Ast.DateLiteral(Op.FISCAL_QUARTER, year, quarter, null, null,
         null, null, null);
   }
@@ -150,9 +155,9 @@ public enum AstBuilder {
     }
   }
 
-  private Ast.Range range(Op op, boolean is, BigDecimal left,
+  private Ast.NumericRange range(Op op, boolean is, BigDecimal left,
       BigDecimal right) {
-    return new Ast.Range(op, null, is, left, right);
+    return new Ast.NumericRange(op, null, is, left, right);
   }
 
   /** Creates a term representing a one-sided range, such as "{@code > 10}"
@@ -216,12 +221,56 @@ public enum AstBuilder {
     return new Ast.RangeInterval(start, end);
   }
 
+  public AstNode range(Date start, Date end) {
+    return new Ast.Range(start, end);
+  }
+
   public AstNode monthInterval(int year, int month, Ast.Interval end) {
     return new Ast.MonthInterval(year, month, end);
   }
 
   public AstNode absolute(Date date, boolean before) {
     return new Ast.Absolute(date, before);
+  }
+
+  public AstNode relativeRange(boolean fromNow, Ast.Interval startInterval,
+      Ast.Interval endInterval) {
+    return new Ast.RelativeRange(fromNow, startInterval, endInterval);
+  }
+
+  public AstNode relative(boolean fromNow, Ast.Interval startInterval) {
+    return new Ast.Relative(fromNow ? Op.FROM_NOW : Op.PAST_AGO,
+        startInterval.value, startInterval.unit);
+  }
+
+  public AstNode relative1(boolean before, Op op, DatetimeUnit unit) {
+    return new Ast.ThisUnit(op.beforeAfter(before), unit);
+  }
+
+  public AstNode relativeUnit(boolean before, boolean fromNow, BigDecimal value,
+      DatetimeUnit unit) {
+    return new Ast.RelativeUnit(before, fromNow, value, unit);
+  }
+
+  public AstNode past(BigDecimal value, DatetimeUnit unit, boolean complete) {
+    return new Ast.Past(value, unit, complete);
+  }
+
+  public AstNode past(BigDecimal value, DatetimeUnit unit) {
+    return past(value, unit, false);
+  }
+
+  public AstNode thisUnit(Op op, DatetimeUnit unit) {
+    return new Ast.ThisUnit(op, unit);
+  }
+
+  public AstNode thisRange(DatetimeUnit startInterval,
+      DatetimeUnit endInterval) {
+    return new Ast.ThisRange(startInterval, endInterval);
+  }
+
+  public AstNode lastInterval(BigDecimal value, DatetimeUnit interval) {
+    return new Ast.LastInterval(value, interval);
   }
 }
 

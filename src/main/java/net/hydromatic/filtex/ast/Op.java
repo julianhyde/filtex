@@ -57,10 +57,27 @@ public enum Op {
   MONTH,
   ON,
   RANGE_INTERVAL,
+  RANGE,
   MONTH_INTERVAL,
   INTERVAL,
   BEFORE,
-  AFTER;
+  AFTER,
+  AFTER_THIS("after_this"),
+  BEFORE_THIS("before_this"),
+  AFTER_NEXT("after_next"),
+  BEFORE_NEXT("before_next"),
+  AFTER_LAST("after_last"),
+  BEFORE_LAST("before_last"),
+  RELATIVE,
+  THIS,
+  NEXT,
+  LAST,
+  THIS_RANGE,
+  PAST,
+  PAST_AGO,
+  FROM_NOW("from now"),
+  DAY,
+  LAST_INTERVAL;
 
   public final String s;
   public final String left;
@@ -92,6 +109,20 @@ public enum Op {
    * for example "[0, 10)" does not contain its lower bound, "10". */
   public boolean containsUpperBound() {
     return s.endsWith("]");
+  }
+
+  public Op beforeAfter(boolean before) {
+    switch (this) {
+    case THIS:
+      return before ? BEFORE_THIS : AFTER_THIS;
+    case NEXT:
+      return before ? BEFORE_NEXT : AFTER_NEXT;
+    case LAST:
+      return before ? BEFORE_LAST : AFTER_LAST;
+    default:
+      throw new IllegalArgumentException((before ? "before" : "after")
+          + "-" + this);
+    }
   }
 }
 

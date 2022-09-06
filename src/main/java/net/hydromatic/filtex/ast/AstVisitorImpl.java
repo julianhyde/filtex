@@ -51,7 +51,8 @@ public abstract class AstVisitorImpl implements AstVisitor {
       @Nullable AstNode parent) {
   }
 
-  @Override public void visit(Ast.Range range, @Nullable AstNode parent) {
+  @Override public void visit(Ast.NumericRange range,
+      @Nullable AstNode parent) {
   }
 
   @Override public void visit(Ast.MatchesAdvanced matchesAdvanced,
