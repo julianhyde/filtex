@@ -94,6 +94,10 @@ public abstract class AstNode {
   public String dateString(boolean showTime) {
     throw new UnsupportedOperationException("not a date: " + getClass());
   }
+
+  public Digester digest(Digester digester) {
+    return digester.put("type", type());
+  }
 }
 
 // End AstNode.java

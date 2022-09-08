@@ -16,12 +16,9 @@
  */
 package net.hydromatic.filtex;
 
-import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.AstNode;
 import net.hydromatic.filtex.ast.Asts;
-import net.hydromatic.filtex.ast.Date;
-import net.hydromatic.filtex.ast.Datetime;
-import net.hydromatic.filtex.ast.Op;
+import net.hydromatic.filtex.ast.Digester;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Disabled;
@@ -39,95 +36,6 @@ import static org.hamcrest.core.Is.is;
 /** Tests date expressions. */
 public class DateTest {
 
-  private String digest(AstNode node) {
-    return digest(new LocationTest.Digester(), "", node)
-        .toString();
-  }
-
-  private LocationTest.Digester digest(LocationTest.Digester digester,
-      String prefix, Object node) {
-    digester
-        .putIfInstance(prefix + "type", AstNode.class, node, AstNode::type)
-        .putIfInstanceIf(prefix + "year", Ast.DateLiteral.class, node,
-            d -> d.op != Op.ON, d -> d.year)
-        .putIfInstanceIf(prefix + "date.year", Ast.DateLiteral.class, node,
-            d -> d.op == Op.ON, d -> d.year)
-        .putIfInstance(prefix + "quarter.quarter", Ast.DateLiteral.class, node,
-            d -> d.quarter)
-        .putIfInstanceIf(prefix + "month", Ast.DateLiteral.class, node,
-            d -> d.op != Op.ON, d -> d.month)
-        .putIfInstanceIf(prefix + "date.month", Ast.DateLiteral.class, node,
-            d -> d.op == Op.ON, d -> d.month)
-        .putIfInstanceIf(prefix + "date.day", Ast.DateLiteral.class, node,
-            d -> d.op == Op.ON, d -> d.day)
-        .putIfInstance(prefix + "day", Ast.DayLiteral.class, node, n -> n.day)
-        .putIfInstance(prefix + "unit", Ast.Interval.class, node, i ->
-            i.unit.singular)
-        .putIfInstance(prefix + "value", Ast.Interval.class, node, i -> i.value)
-        .putIfInstance(prefix + "year", Ast.MonthInterval.class, node,
-            d -> d.year)
-        .putIfInstance(prefix + "month", Ast.MonthInterval.class, node,
-            d -> d.month)
-        .putIfInstance(prefix + "year", Date.class, node, d -> d.year)
-        .putIfInstance(prefix + "month", Date.class, node, d -> d.month)
-        .putIfInstance(prefix + "day", Date.class, node, d -> d.day)
-        .putIfInstance(prefix + "hour", Datetime.class, node, d -> d.hour)
-        .putIfInstance(prefix + "minute", Datetime.class, node, d -> d.minute)
-        .putIfInstance(prefix + "second", Datetime.class, node, d -> d.second)
-        .putIfInstance(prefix + "range", Ast.Absolute.class, node,
-            n -> "absolute")
-        .putIfInstance(prefix + "intervalType", Ast.RelativeRange.class, node,
-            Ast.RelativeRange::intervalType)
-        .putIfInstance(prefix + "range", Ast.RelativeUnit.class, node,
-            n -> "relative")
-        .putIfInstance(prefix + "fromnow", Ast.RelativeUnit.class, node,
-            n -> n.fromNow)
-        .putIfInstance(prefix + "unit", Ast.RelativeUnit.class, node,
-            n -> n.unit.singular)
-        .putIfInstance(prefix + "value", Ast.RelativeUnit.class, node,
-            n -> n.value)
-        .putIfInstance(prefix + "unit", Ast.Past.class, node,
-            n -> n.unit.singular)
-        .putIfInstance(prefix + "value", Ast.Past.class, node, n -> n.value)
-        .putIfInstanceIf(prefix + "complete", Ast.Past.class, node,
-            n -> n.complete, n -> n.complete)
-        .putIfInstance(prefix + "unit", Ast.Relative.class, node,
-            n -> n.unit.singular)
-        .putIfInstance(prefix + "value", Ast.Relative.class, node, n -> n.value)
-        .putIfInstance(prefix + "unit", Ast.ThisUnit.class, node,
-            n -> n.unit.singular)
-        .putIfInstance(prefix + "startInterval", Ast.ThisRange.class, node,
-            n -> n.startInterval.singular)
-        .putIfInstance(prefix + "endInterval", Ast.ThisRange.class, node,
-            n -> n.endInterval.singular)
-        .putIfInstance(prefix + "unit", Ast.LastInterval.class, node,
-            n -> n.unit.singular)
-        .putIfInstance(prefix + "value", Ast.LastInterval.class, node,
-            n -> n.value);
-    if (node instanceof Ast.RangeInterval) {
-      // TODO convert the following to new method .recurseIfInstance
-      digest(digester, prefix + "end.", ((Ast.RangeInterval) node).end);
-      digest(digester, prefix + "start.", ((Ast.RangeInterval) node).start);
-    }
-    if (node instanceof Ast.Range) {
-      digest(digester, prefix + "end.", ((Ast.Range) node).end);
-      digest(digester, prefix + "start.", ((Ast.Range) node).start);
-    }
-    if (node instanceof Ast.MonthInterval) {
-      digest(digester, prefix + "end.", ((Ast.MonthInterval) node).end);
-    }
-    if (node instanceof Ast.Absolute) {
-      digest(digester, prefix + "date.", ((Ast.Absolute) node).date);
-    }
-    if (node instanceof Ast.RelativeRange) {
-      digest(digester, prefix + "endInterval.",
-          ((Ast.RelativeRange) node).endInterval);
-      digest(digester, prefix + "startInterval.",
-          ((Ast.RelativeRange) node).startInterval);
-    }
-    return digester;
-  }
-
   @Disabled
   @Test void testDateGrammarCanParse() {
     forEach(TestValues.DATE_EXPRESSION_TEST_ITEMS, i ->
@@ -140,17 +48,13 @@ public class DateTest {
     // test ast
     final AstNode ast =
         parseFilterExpression(TypeFamily.DATE, expression);
-    assertThat(digest(ast), is(expectedDigest));
+    String digest = ast.digest(new Digester()).toString();
+    assertThat(digest, is(expectedDigest));
 
     // test descriptions
     String summary =
         Filtex.summary(TypeFamily.DATE, expression, Locale.ENGLISH);
-
     assertThat(summary, is(expectedSummary));
-    if (expectedDigest != null) {
-      final String digest = digest(ast);
-      assertThat(digest, is(expectedDigest));
-    }
 
     // test item type
     final List<AstNode> list = Asts.treeToList(ast);
@@ -218,7 +122,7 @@ public class DateTest {
 
   void checkExpression(String expression, String expectedDigest) {
     final AstNode node = parseFilterExpression(TypeFamily.DATE, expression);
-    final String digest = digest(node);
+    final String digest = node.digest(new Digester()).toString();
     assertThat(digest, is(expectedDigest));
     // TODO expect(summary('date', expression)).not.toBe('')
   }

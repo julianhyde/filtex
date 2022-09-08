@@ -33,6 +33,13 @@ public class Datetime extends Date {
     this.minute = minute;
     this.second = second;
   }
+
+  @Override public Digester digest(Digester digester) {
+    return super.digest(digester)
+        .put("hour", hour)
+        .put("minute", minute)
+        .putIf("second", second);
+  }
 }
 
 // End Datetime.java

@@ -33,6 +33,12 @@ public class Date {
   public Datetime plus(Time t) {
     return new Datetime(year, month, day, t.hour, t.minute, t.second);
   }
+
+  public Digester digest(Digester digester) {
+    return digester.put("year", year)
+        .put("month", month)
+        .put("day", day);
+  }
 }
 
 // End Date.java

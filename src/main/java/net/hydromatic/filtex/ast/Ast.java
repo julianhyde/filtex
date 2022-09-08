@@ -36,15 +36,15 @@ public class Ast {
 
   /** Date literal. */
   public static class DateLiteral extends AstNode {
-    public final Integer year;
+    public final int year;
     public final @Nullable Integer quarter;
     public final @Nullable Integer month;
     public final @Nullable Integer day;
-    private final Integer hour;
-    private final Integer minute;
-    private final Integer second;
+    private final @Nullable Integer hour;
+    private final @Nullable Integer minute;
+    private final @Nullable Integer second;
 
-    public DateLiteral(Op op, Integer year, @Nullable Integer quarter,
+    public DateLiteral(Op op, int year, @Nullable Integer quarter,
         @Nullable Integer month, @Nullable Integer day, @Nullable Integer hour,
         @Nullable Integer minute, @Nullable Integer second) {
       super(Pos.ZERO, op);
@@ -55,6 +55,14 @@ public class Ast {
       this.hour = hour;
       this.minute = minute;
       this.second = second;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put(op == Op.ON ? "date.year" : "year", year)
+          .putIf(op == Op.ON ? "date.month" : "month", month)
+          .putIf(op == Op.ON ? "date.day" : "day", day)
+          .putIf("quarter.quarter", quarter);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -73,6 +81,11 @@ public class Ast {
     public DayLiteral(String day) {
       super(Pos.ZERO, Op.DAY);
       this.day = day;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("day", day);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -106,6 +119,12 @@ public class Ast {
       return Objects.hash(value, unit);
     }
 
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("unit", unit.singular)
+          .put("value", value);
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -126,6 +145,12 @@ public class Ast {
       this.end = end;
     }
 
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .sub("end", end)
+          .sub("start", start);
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -144,6 +169,12 @@ public class Ast {
       super(Pos.ZERO, Op.RANGE_INTERVAL);
       this.start = start;
       this.end = end;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .sub("end", end)
+          .sub("start", start);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -168,6 +199,13 @@ public class Ast {
       this.end = end;
     }
 
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .sub("end", end)
+          .put("year", year)
+          .put("month", month);
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -184,6 +222,12 @@ public class Ast {
     protected Point(Location location) {
       super(Pos.ZERO, Op.POINT);
       this.location = location;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("lat", location.latitude)
+          .put("long", location.longitude);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -204,6 +248,14 @@ public class Ast {
       super(Pos.ZERO, Op.BOX);
       this.from = from;
       this.to = to;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("lat", from.latitude)
+          .put("lon", from.longitude)
+          .put("lat1", to.latitude)
+          .put("lon1", to.longitude);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -242,6 +294,14 @@ public class Ast {
       this.distance = distance;
       this.unit = unit;
       this.location = location;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("distance", distance)
+          .put("unit", unit.plural)
+          .put("lat", location.latitude)
+          .put("lon", location.longitude);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -460,6 +520,12 @@ public class Ast {
       this.date = date;
     }
 
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .sub("date", date)
+          .put("range", "absolute");
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -480,6 +546,13 @@ public class Ast {
       this.fromNow = fromNow;
       this.startInterval = startInterval;
       this.endInterval = endInterval;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("intervalType", intervalType())
+          .sub("endInterval", endInterval)
+          .sub("startInterval", startInterval);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -509,6 +582,14 @@ public class Ast {
       this.unit = unit;
     }
 
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("range", "relative")
+          .put("fromnow", fromNow)
+          .put("unit", unit.singular)
+          .put("value", value);
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -530,6 +611,13 @@ public class Ast {
       this.complete = complete;
     }
 
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("unit", unit.singular)
+          .put("value", value)
+          .putIf("complete", complete ? true : null);
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -548,6 +636,12 @@ public class Ast {
       checkArgument(op == Op.FROM_NOW || op == Op.PAST_AGO);
       this.value = value;
       this.unit = unit;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("unit", unit.singular)
+          .put("value", value);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
@@ -571,6 +665,11 @@ public class Ast {
       this.unit = unit;
     }
 
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("unit", unit.singular);
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -591,6 +690,12 @@ public class Ast {
       this.endInterval = endInterval;
     }
 
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("startInterval", startInterval.singular)
+          .put("endInterval", endInterval.singular);
+    }
+
     @Override public AstWriter unparse(AstWriter writer) {
       throw new AssertionError();
     }
@@ -609,6 +714,12 @@ public class Ast {
       super(Pos.ZERO, Op.LAST_INTERVAL);
       this.value = value;
       this.unit = unit;
+    }
+
+    @Override public Digester digest(Digester digester) {
+      return super.digest(digester)
+          .put("unit", unit.singular)
+          .put("value", value);
     }
 
     @Override public AstWriter unparse(AstWriter writer) {
