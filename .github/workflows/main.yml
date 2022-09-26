@@ -25,6 +25,7 @@ jobs:
 
     strategy:
       matrix:
+        graalvm-version: [ "" ]
         java-version: [ "11", "17" ]
         javadoc: [ false ]
         site: [ false ]
@@ -35,9 +36,11 @@ jobs:
             # also test lowest Guava version.
           - java-version: "8"
             checkstyle-version: "9.3"
+            graalvm-version: "22.0.0.2"
             guava-version: "19.0"
             javadoc: true
           - java-version: "11"
+            graalvm-version: "22.0.0.2"
             guava-version: "23.0"
             site: true
 
@@ -65,6 +68,10 @@ jobs:
           if [ "${{ matrix.checkstyle-version }}" ]
           then
             DEFS="$DEFS -Dcheckstyle.version=${{ matrix.checkstyle-version }}"
+          fi
+          if [ "${{ matrix.graalvm-version }}" ]
+          then
+            DEFS="$DEFS -Dgraalvm.version=${{ matrix.graalvm-version }}"
           fi
           if [ "${{ matrix.guava-version }}" ]
           then
