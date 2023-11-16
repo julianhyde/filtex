@@ -4,7 +4,7 @@ Here's some miscellaneous documentation about using and developing Filtex.
 
 # Release
 
-Make sure that `./mvnw clean install site` runs on JDK 8, 11 and 17
+Make sure that `./mvnw clean install site` runs on JDK 8, 11, 17 and 21
 on Linux, macOS and Windows.
 Also check [Travis CI](https://travis-ci.org/julianhyde/filtex).
 

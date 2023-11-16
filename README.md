@@ -19,6 +19,7 @@ License.
 {% endcomment %}
 -->
 [![Build Status](https://github.com/julianhyde/filtex/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/julianhyde/filtex/actions?query=branch%3Amain)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/net.hydromatic/filtex/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.hydromatic/filtex)
 
 # Filtex
 
