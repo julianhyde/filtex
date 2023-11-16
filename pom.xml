@@ -80,6 +80,7 @@
     <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
     <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
     <slf4j.version>2.0.0</slf4j.version>
+    <versions-maven-plugin.version>2.16.1</versions-maven-plugin.version>
   </properties>
 
   <!-- Environment settings. -->
@@ -302,6 +303,11 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>versions-maven-plugin</artifactId>
+        <version>${versions-maven-plugin.version}</version>
       </plugin>
       <plugin>
         <groupId>org.javacc.plugin</groupId>

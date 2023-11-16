@@ -8,6 +8,12 @@ Make sure that `./mvnw clean install site` runs on JDK 8, 11 and 17
 on Linux, macOS and Windows.
 Also check [Travis CI](https://travis-ci.org/julianhyde/filtex).
 
+Upgrade dependencies to their latest release: run
+```bash
+./mvnw versions:update-properties
+```
+and commit the modified `pom.xml`.
+
 Update the [release history](HISTORY.md),
 the version number at the bottom of [README](README.md),
 and the copyright date in [NOTICE](NOTICE).
