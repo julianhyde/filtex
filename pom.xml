@@ -8,7 +8,7 @@
   </parent>
 
   <artifactId>filtex</artifactId>
-  <version>0.1</version>
+  <version>0.2-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <!-- More project information. -->
@@ -101,7 +101,7 @@
     <connection>scm:git:git://github.com/julianhyde/filtex.git</connection>
     <developerConnection>scm:git:git@github.com:julianhyde/filtex.git</developerConnection>
     <url>https://github.com/julianhyde/filtex/tree/main</url>
-    <tag>filtex-0.1</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <repositories>
