@@ -8,7 +8,7 @@
   </parent>
 
   <artifactId>filtex</artifactId>
-  <version>0.1-SNAPSHOT</version>
+  <version>0.1</version>
   <packaging>jar</packaging>
 
   <!-- More project information. -->
@@ -77,7 +77,7 @@
     <maven-javadoc-plugin.version>3.6.2</maven-javadoc-plugin.version>
     <maven-javadoc-plugin.additionalOptions>-html5</maven-javadoc-plugin.additionalOptions>
     <maven-site-plugin.version>4.0.0-M11</maven-site-plugin.version>
-    <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
+    <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
     <maven-surefire-plugin.version>3.2.2</maven-surefire-plugin.version>
     <slf4j.version>2.0.9</slf4j.version>
     <versions-maven-plugin.version>2.16.1</versions-maven-plugin.version>
@@ -101,7 +101,7 @@
     <connection>scm:git:git://github.com/julianhyde/filtex.git</connection>
     <developerConnection>scm:git:git@github.com:julianhyde/filtex.git</developerConnection>
     <url>https://github.com/julianhyde/filtex/tree/main</url>
-    <tag>HEAD</tag>
+    <tag>filtex-0.1</tag>
   </scm>
 
   <repositories>

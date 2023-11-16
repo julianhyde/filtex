@@ -18,14 +18,25 @@ Update the [release history](HISTORY.md),
 the version number at the bottom of [README](README.md),
 and the copyright date in [NOTICE](NOTICE).
 
+Switch to JDK 17.
+
+Set up tty so that gpg can prompt for password:
+```
+export GPG_TTY=$(tty)
+```
+
+Check that the sandbox is clean:
 ```
 ./mvnw clean
 ./mvnw release:clean
 git clean -nx
 git clean -fx
-read -s GPG_PASSPHRASE
-./mvnw -Prelease -Dgpg.passphrase=${GPG_PASSPHRASE} release:prepare
-./mvnw -Prelease -Dgpg.passphrase=${GPG_PASSPHRASE} release:perform
+```
+
+Prepare and perform:
+```
+./mvnw -Prelease -DreleaseVersion=x.y.0 -DdevelopmentVersion=x.(y+1).0-SNAPSHOT release:prepare
+./mvnw -Prelease release:perform
 ```
 
 Then go to [Sonatype](https://oss.sonatype.org/#stagingRepositories),

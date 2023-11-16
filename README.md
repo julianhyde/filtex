@@ -42,22 +42,25 @@ Get Filtex from
 
 ### Download and build
 
-You need Java (8 or higher) and Git.
+You need Java (8 or higher, 21 preferred) and Git.
 
 ```bash
 $ git clone git://github.com/julianhyde/filtex.git
 $ cd filtex
-$ ./mvnw compile
+$ ./mvnw verify
 ```
 
 On Windows, the last line is
 
 ```bash
-> mvnw install
+> mvnw verify
 ```
 
-On Java versions less than 11, you should add parameters
-`-Dcheckstyle.version=9.3`.
+On Java versions 11 or lower, you should add the follow parameters to
+the Maven command:
+```
+-Dcheckstyle.version=9.3 -Dgraalvm.version=22.0.0.2
+```
 
 ## More information
 
