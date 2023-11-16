@@ -26,7 +26,7 @@ jobs:
     strategy:
       matrix:
         graalvm-version: [ "" ]
-        java-version: [ "11", "17" ]
+        java-version: [ "17", "21" ]
         javadoc: [ false ]
         site: [ false ]
         checkstyle-version: [ "" ]
