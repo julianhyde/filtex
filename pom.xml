@@ -62,6 +62,7 @@
     <checkerframework.version>3.40.0</checkerframework.version>
     <!-- We support checkstyle 9.3 and higher; 10.0 requires JDK 11 or higher. -->
     <checkstyle.version>10.12.5</checkstyle.version>
+    <errorprone.version>2.26.1</errorprone.version>
     <git-commit-id-plugin.version>4.9.10</git-commit-id-plugin.version>
     <graalvm.version>23.0.2</graalvm.version>
     <!-- We support Guava versions 21.0 and higher. -->
@@ -112,6 +113,11 @@
   </repositories>
 
   <dependencies>
+    <dependency>
+      <groupId>com.google.errorprone</groupId>
+      <artifactId>error_prone_annotations</artifactId>
+      <version>${errorprone.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
