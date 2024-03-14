@@ -18,6 +18,8 @@ package net.hydromatic.filtex.lookml;
 
 import java.util.function.Consumer;
 
+/** Handler that converts LookML parse events into strings, and appends those
+ * strings to a given consumer. */
 class LoggingHandler implements ObjectHandler {
   private final Consumer<String> consumer;
   private final ListHandler listHandler = new LoggingListHandler();
@@ -76,7 +78,12 @@ class LoggingHandler implements ObjectHandler {
   }
 
   /** Implementation of {@link net.hydromatic.filtex.lookml.ListHandler}
-   * that logs events, as strings, to a consumer. */
+   * that logs events, as strings, to a consumer.
+   *
+   * <p>This class is necessary because there are methods in common between
+   * the {@link ObjectHandler} and {@link ListHandler} interfaces. If there
+   * were no methods in common, a single object could have implemented both
+   * interfaces. */
   private class LoggingListHandler implements ListHandler {
     @Override public ListHandler string(String value) {
       consumer.accept("string(" + value + ")");
