@@ -18,6 +18,8 @@ package net.hydromatic.filtex;
 
 import net.hydromatic.filtex.lookml.LaxHandlers;
 import net.hydromatic.filtex.lookml.LaxParser;
+import net.hydromatic.filtex.lookml.LookmlSchema;
+import net.hydromatic.filtex.lookml.LookmlSchemas;
 import net.hydromatic.filtex.lookml.ObjectHandler;
 
 import org.hamcrest.Matcher;
@@ -27,7 +29,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.aMapWithSize;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.hasToString;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the LookML event-based parser. */
@@ -66,6 +72,49 @@ public class LaxTest {
     }
   }
 
+  /** Creates a schema that is a subset of standard LookML. */
+  static LookmlSchema coreSchema() {
+    return LookmlSchemas.schemaBuilder()
+        .addEnum("boolean", "false", "true")
+        .addEnum("join_type", "left_outer", "full_outer", "inner", "cross")
+        .addEnum("relationship_type", "many_to_one", "many_to_many",
+            "one_to_many", "one_to_one")
+        .addEnum("dimension_field_type", "bin", "date", "date_time", "distance",
+            "duration", "location", "number", "string", "tier", "time",
+            "unquoted", "yesno", "zipcode")
+        .addEnum("measure_field_type", "average", "average_distinct", "count",
+            "count_distinct", "date", "list", "max", "median",
+            "median_distinct", "min", "number", "percent_of_previous",
+            "percent_of_total", "percentile", "percentile_distinct",
+            "running_total", "string", "sum", "sum_distinct", "yesno")
+        .addObjectType("dimension", b ->
+            b.addEnumProperty("type", "dimension_field_type")
+                .build())
+        .addObjectType("measure", b ->
+            b.addEnumProperty("type", "measure_field_type")
+                .build())
+        .addObjectType("view", b ->
+            b.addRefProperty("from")
+                .addStringProperty("label")
+                .addCodeProperty("sql_table_name")
+                .addNamedObjectProperty("dimension")
+                .addNamedObjectProperty("measure")
+                .build())
+        .addObjectType("join", b ->
+            b.addRefProperty("from")
+                .addCodeProperty("sql_on")
+                .addEnumProperty("relationship", "relationship_type")
+                .build())
+        .addObjectType("explore", b ->
+            b.addRefProperty("from")
+                .addRefProperty("view_name")
+                .addNamedObjectProperty("join")
+                .build())
+        .addNamedObjectProperty("model", b ->
+            b.addNamedObjectProperty("explore")
+                .build())
+        .build();
+  }
 
   /** Tests the LookML writer
    * {@link LaxHandlers#writer(StringBuilder, int, boolean)}
@@ -179,6 +228,54 @@ public class LaxTest {
             + "    <COMMENT> ...\n"
             + "    "));
   }
+
+  /** Tests building a simple schema with one enum type. */
+  @Test void testSchemaBuilder() {
+    LookmlSchema s =
+        LookmlSchemas.schemaBuilder()
+            .addEnum("boolean", "true", "false")
+            .build();
+    assertThat(s.objectTypes(), anEmptyMap());
+    assertThat(s.enumTypes(), aMapWithSize(1));
+    assertThat(s.enumTypes().get("boolean").allowedValues(),
+        hasToString("[false, true]"));
+  }
+
+  /** Tests building a schema with two enum types and one root object type. */
+  @Test void testSchemaBuilder2() {
+    LookmlSchema s =
+        LookmlSchemas.schemaBuilder()
+            .addEnum("boolean", "true", "false")
+            .addEnum("join_type", "inner", "cross_join", "left_outer")
+            .addNamedObjectProperty("empty_object",
+                LookmlSchemas.ObjectTypeBuilder::build)
+            .addNamedObjectProperty("model",
+                b -> b.addNumberProperty("x")
+                    .addStringProperty("y")
+                    .addEnumProperty("z", "boolean")
+                    .addObjectProperty("empty_object")
+                    .build())
+            .build();
+    assertThat(s.enumTypes(), aMapWithSize(2));
+    assertThat(s.enumTypes().get("boolean").allowedValues(),
+        hasToString("[false, true]"));
+    assertThat(s.enumTypes().get("join_type").allowedValues(),
+        hasToString("[cross_join, inner, left_outer]"));
+    assertThat(s.objectTypes(), aMapWithSize(2));
+    assertThat(s.objectTypes().get("baz"), nullValue());
+    assertThat(s.objectTypes().get("model"), notNullValue());
+    assertThat(s.objectTypes().get("model").properties().keySet(),
+        hasToString("[empty_object, x, y, z]"));
+  }
+
+  /** Tests building core LookML schema. */
+  @Test void testSchemaBuilder3() {
+    final LookmlSchema schema = coreSchema();
+    assertThat(schema.objectTypes(), aMapWithSize(6));
+    assertThat(schema.enumTypes(), aMapWithSize(5));
+    assertThat(schema.rootProperties(), aMapWithSize(1));
+  }
+
 }
 
 // End LaxTest.java

@@ -50,7 +50,10 @@ import java.util.regex.Pattern;
  * <li>Comments can only occur in objects and in lists
  *     (not, say, before a comma in a list)
  * <li>No raw string literals
- * <li>Backslash doublequote is the only escape
+ * <li>Backslash double-quote is the only escape in string literals
+ * <li>Identifiers can only be single-part (e.g. 'orders' but not
+       'orders.order_date')
+ * <li>Lists cannot contain pairs
  * </ul>
  */
 public class LookmlParserImpl implements LookmlParser {
