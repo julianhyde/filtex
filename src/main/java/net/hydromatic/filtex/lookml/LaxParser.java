@@ -25,92 +25,13 @@ import java.io.StringReader;
 public class LaxParser {
   private LaxParser() {}
 
-  /** State of being inside an object. */
-  private static final int IN_OBJ = 0;
-
-  /** State of being inside an identifier. */
-  private static final int IN_ID = 1;
-
-  /** State of being inside a comment. */
-  private static final int COMMENT = 2;
-
-  private static final String[] STATE_NAMES = {
-      "IN_OBJ", "IN_ID", "COMMENT"};
-
-  private static void err(char c, int state) {
-    throw new IllegalArgumentException("unexpected char '" + c
-        + " in state " + STATE_NAMES[state]);
-  }
-
+  /** Parses a LookML string. */
   public static void parse(String s, ObjectHandler handler) {
-    if (true) {
-      final LookmlParserImpl parser = new LookmlParserImpl(new StringReader(s));
-      try {
-        parser.document(handler);
-      } catch (ParseException e) {
-        throw new RuntimeException(e);
-      }
-      return;
-    }
-    // At start of doc, state is as if we just saw a '{' and entered an object.
-    int state = IN_OBJ;
-    int start; // ordinal of start of current identifier or comment
-    int i = 0;
-    final int size = s.length();
-    for (; i < size;) {
-      char c = s.charAt(i);
-      switch (state) {
-      case IN_OBJ:
-        switch (c) {
-        case '#':
-          start = i++;
-          for (;;) {
-            if (i >= size) {
-              break;
-            }
-            c = s.charAt(i++);
-            if (c == '\n') {
-              break;
-            }
-          }
-          handler.comment(s.substring(start, i));
-          if (i >= size) {
-            return;
-          }
-          break;
-
-        case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-        case 'g': case 'h': case 'i': case 'j': case 'k': case 'l':
-        case 'm': case 'n': case 'o': case 'p': case 'q': case 'r':
-        case 's': case 't': case 'u': case 'v': case 'w': case 'x':
-        case 'y': case 'z':
-          // We are looking at an identifier, e.g.
-          //   abc: 1
-          //   ^
-          start = i++;
-          for (;;) {
-            if (i >= size) {
-              break;
-            }
-            c = s.charAt(i++);
-            if (c == '\n') {
-              break;
-            }
-          }
-          String id = s.substring(start, i);
-          if (i >= size) {
-            throw new IllegalArgumentException("trailing identifier " + id);
-          }
-          break;
-
-        default:
-          err(c, state);
-        }
-        break;
-
-      case COMMENT:
-
-      }
+    final LookmlParserImpl parser = new LookmlParserImpl(new StringReader(s));
+    try {
+      parser.document(handler);
+    } catch (ParseException e) {
+      throw new RuntimeException(e);
     }
   }
 }
