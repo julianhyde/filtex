@@ -26,6 +26,11 @@ class LoggingHandler implements ObjectHandler {
     this.consumer = consumer;
   }
 
+  @Override public ObjectHandler comment(String comment) {
+    consumer.accept("comment(" + comment + ")");
+    return this;
+  }
+
   @Override public ObjectHandler number(String property, Number value) {
     consumer.accept("number(" + property + ", " + value + ")");
     return this;
@@ -90,6 +95,11 @@ class LoggingHandler implements ObjectHandler {
 
     @Override public ListHandler identifier(String value) {
       consumer.accept("identifier(" + value + ")");
+      return this;
+    }
+
+    @Override public ListHandler comment(String comment) {
+      consumer.accept("comment(" + comment + ")");
       return this;
     }
 

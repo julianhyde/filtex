@@ -17,8 +17,10 @@
 package net.hydromatic.filtex;
 
 import net.hydromatic.filtex.lookml.LaxHandlers;
+import net.hydromatic.filtex.lookml.LaxParser;
 import net.hydromatic.filtex.lookml.ObjectHandler;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -26,6 +28,7 @@ import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasToString;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the LookML event-based parser. */
 public class LaxTest {
@@ -47,6 +50,27 @@ public class LaxTest {
         .close();
   }
 
+  private static void assertParse(String s, Matcher<List<String>> matcher) {
+    final List<String> list = new ArrayList<>();
+    LaxParser.parse(s, LaxHandlers.logger(list::add));
+    assertThat(list, matcher);
+  }
+
+  private static void assertParseThrows(String s, Matcher<Throwable> matcher) {
+    try {
+      final List<String> list = new ArrayList<>();
+      LaxParser.parse(s, LaxHandlers.logger(list::add));
+      fail("expected error, got " + list);
+    } catch (RuntimeException e) {
+      assertThat(e, matcher);
+    }
+  }
+
+
+  /** Tests the LookML writer
+   * {@link LaxHandlers#writer(StringBuilder, int, boolean)}
+   * by running a sequence of parse events through the writer and checking
+   * the generated LookML string. */
   @Test void testWriter() {
     final StringBuilder b = new StringBuilder();
     generateSampleEvents(LaxHandlers.writer(b, 2, true));
@@ -67,6 +91,7 @@ public class LaxTest {
         + "}";
     assertThat(b, hasToString(lookml));
 
+    // Same as previous, in non-pretty mode
     b.setLength(0);
     generateSampleEvents(LaxHandlers.writer(b, 2, false));
     final String lookml2 = "model:m {"
@@ -77,6 +102,10 @@ public class LaxTest {
     assertThat(b, hasToString(lookml2));
   }
 
+  /** Tests the logging handler
+   * {@link net.hydromatic.filtex.lookml.LaxHandlers#logger}
+   * by running a sequence of parser events through it and checking the
+   * resulting list of strings. */
   @Test void testLogger() {
     final List<String> list = new ArrayList<>();
     generateSampleEvents(LaxHandlers.logger(list::add));
@@ -98,6 +127,57 @@ public class LaxTest {
             + "listClose(), "
             + "objClose(), "
             + "objClose()]"));
+  }
+
+  @Test void testParse() {
+    assertParse("model: m {}",
+        hasToString("[objOpen(model, m),"
+            + " objClose()]"));
+    assertParseThrows("# just a comment",
+        hasToString("java.lang.RuntimeException: "
+            + "net.hydromatic.filtex.lookml.parse.ParseException: "
+            + "Encountered \"<EOF>\" at line 1, column 16.\n"
+            + "Was expecting one of:\n"
+            + "    <IDENTIFIER> ...\n"
+            + "    <COMMENT> ...\n"
+            + "    "));
+    assertParseThrows("abc",
+        hasToString("java.lang.RuntimeException: "
+            + "net.hydromatic.filtex.lookml.parse.ParseException: "
+            + "Encountered \"<EOF>\" at line 1, column 3.\n"
+            + "Was expecting:\n"
+            + "    \":\" ...\n"
+            + "    "));
+    assertParse("model: m {}",
+        hasToString("[objOpen(model, m),"
+            + " objClose()]"));
+    assertParse("s: \"a \\\"quoted\\\" string\"",
+        hasToString("[string(s, a \\\"quoted\\\" string)]"));
+    assertParse("p: []",
+        hasToString("[listOpen(p), listClose()]"));
+    assertParse("p: [1]",
+        hasToString("[listOpen(p), number(1), listClose()]"));
+    assertParse("p: [1, true, [2], -3.5]",
+        hasToString("[listOpen(p), number(1), identifier(true),"
+            + " listOpen(), number(2), listClose(),"
+            + " number(-3.5), listClose()]"));
+    assertParse("# begin\n"
+            + "model: m {\n"
+            + "# middle\n"
+            + "} # end",
+        hasToString("[comment(# begin),"
+            + " objOpen(model, m),"
+            + " comment(# middle),"
+            + " objClose(),"
+            + " comment(# end)]"));
+    assertParseThrows("",
+        hasToString("java.lang.RuntimeException: "
+            + "net.hydromatic.filtex.lookml.parse.ParseException: "
+            + "Encountered \"<EOF>\" at line 0, column 0.\n"
+            + "Was expecting one of:\n"
+            + "    <IDENTIFIER> ...\n"
+            + "    <COMMENT> ...\n"
+            + "    "));
   }
 }
 

@@ -62,6 +62,11 @@ public class LaxHandlers {
       this.onClose = onClose;
     }
 
+    @Override public ObjectBuilder comment(String comment) {
+      // ignore comment
+      return this;
+    }
+
     @Override public ObjectBuilder number(String property, Number value) {
       properties.add(property, Values.number(value));
       return this;
@@ -137,6 +142,11 @@ public class LaxHandlers {
 
     @Override public ListHandler identifier(String value) {
       list.add(Values.identifier(value));
+      return this;
+    }
+
+    @Override public ListHandler comment(String comment) {
+      // Ignore the comment
       return this;
     }
 

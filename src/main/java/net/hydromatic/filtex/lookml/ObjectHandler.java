@@ -86,4 +86,6 @@ public interface ObjectHandler {
 
   /** Closes this object. */
   void close();
+
+  ObjectHandler comment(String comment);
 }

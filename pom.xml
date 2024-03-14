@@ -335,6 +335,7 @@
             <configuration>
               <includes>
                 <include>**/FiltexParser.jj</include>
+                <include>**/LookmlParser.jj</include>
               </includes>
               <lookAhead>1</lookAhead>
               <isStatic>false</isStatic>

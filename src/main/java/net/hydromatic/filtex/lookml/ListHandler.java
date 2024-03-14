@@ -34,6 +34,9 @@ public interface ListHandler {
   /** Adds an identifier to this list. */
   ListHandler identifier(String value);
 
+  /** Adds a comment to this list. */
+  ListHandler comment(String comment);
+
   /** Finishes this list. */
   void close();
 

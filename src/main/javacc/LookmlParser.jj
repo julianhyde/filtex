@@ -1,0 +1,301 @@
+/*
+ * Licensed to Julian Hyde under one or more contributor license
+ * agreements.  See the NOTICE file distributed with this work
+ * for additional information regarding copyright ownership.
+ * Julian Hyde licenses this file to you under the Apache
+ * License, Version 2.0 (the "License"); you may not use this
+ * file except in compliance with the License.  You may obtain a
+ * copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied.  See the License for the specific
+ * language governing permissions and limitations under the
+ * License.
+ */
+
+options {
+  STATIC = false;
+  IGNORE_CASE = true;
+  UNICODE_INPUT = true;
+}
+
+PARSER_BEGIN(LookmlParserImpl)
+
+package net.hydromatic.filtex.lookml.parse;
+
+import net.hydromatic.filtex.ast.Pos;
+import net.hydromatic.filtex.lookml.ListHandler;
+import net.hydromatic.filtex.lookml.ObjectHandler;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
+/**
+ * Parser for filter expressions, generated from LookmlParser.jj by JavaCC.
+ *
+ * <p>Limitations:
+ * <ul>
+ * <li>Comments can only occur in objects and in lists
+ *     (not, say, before a comma in a list)
+ * <li>No raw string literals
+ * <li>Backslash doublequote is the only escape
+ * </ul>
+ */
+public class LookmlParserImpl implements LookmlParser {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger("net.hydromatic.filtex.lookml.parse");
+
+  public void setTabSize(int tabSize) {
+    jj_input_stream.setTabSize(tabSize);
+  }
+
+  String file; // for future multi-file support
+  int lineOffset; // for future multi-file support
+
+  public Pos pos() {
+    return new Pos(file,
+        token.beginLine - lineOffset, token.beginColumn,
+        token.endLine - lineOffset, token.endColumn + 1);
+  }
+}
+
+PARSER_END(LookmlParserImpl)
+
+/* For Debug */
+JAVACODE
+void debug_message1()
+{
+  LOGGER.info("{} , {}", getToken(0).image, getToken(1).image);
+}
+
+// Atoms and literals
+
+BigDecimal number() : {}
+{
+  <NUMBER_LITERAL> { return new BigDecimal(token.image); }
+}
+
+String string() : {}
+{
+  <QUOTED_STRING> { return token.image.substring(1, token.image.length() - 1); }
+}
+
+String identifier() : {}
+{
+  <IDENTIFIER> { return token.image; }
+}
+
+String comment() : {}
+{
+  <COMMENT> { return token.image; }
+}
+
+/** Parses a document, e.g. 'model: m {}'. */
+void document(ObjectHandler h) : {}
+{
+  ( commentInObj(h) )*
+  property(h)
+  ( commentInObj(h) )*
+}
+
+/** Parses the body of an object. */
+void objectBody(ObjectHandler h) : {}
+{
+  ( objectElement(h) )*
+}
+
+/** Parses an element (property or comment) in an object. */
+void objectElement(ObjectHandler h) : {}
+{
+  LOOKAHEAD(1)
+  commentInObj(h)
+|
+  property(h)
+}
+
+/** Parses the body of a list. */
+void listBody(ListHandler h) : {}
+{
+  [
+    listElement(h)
+    ( <COMMA> listElement(h) )*
+  ]
+}
+
+/** Parses an element (value or comment) in a list. */
+void listElement(ListHandler h) : {}
+{
+  LOOKAHEAD(1)
+  commentInList(h)
+|
+  value(h)
+}
+
+/** Parses a property, e.g. 'p: true', 'q: 1', 'r: []', 's: name {}',
+  * 't: {}', 'u: "string"'. */
+void property(ObjectHandler h) : {
+  String propertyName;
+}
+{
+  propertyName = identifier()
+  <COLON>
+  (
+    identifierProperty(propertyName, h)
+  |
+    numberProperty(propertyName, h)
+  |
+    stringProperty(propertyName, h)
+  |
+    listProperty(propertyName, h)
+  |
+    objectProperty(propertyName, h)
+  )
+}
+
+/** Parses a number property, e.g. 'p: 1', 'q: -2', 'r: -3.5'. */
+void numberProperty(String propertyName, ObjectHandler h) : {
+  BigDecimal number;
+}
+{
+  number = number() {
+    h.number(propertyName, number);
+  }
+}
+
+/** Parses a string property, e.g. p: 'abc'. */
+void stringProperty(String propertyName, ObjectHandler h) : {
+  String string;
+}
+{
+  string = string() {
+    h.string(propertyName, string);
+  }
+}
+
+/** Parses a list property, e.g. 'p: [1, 2]'. */
+void listProperty(String propertyName, ObjectHandler h) : {
+  ListHandler h2;
+}
+{
+  <LBRACKET> { h2 = h.listOpen(propertyName); }
+  listBody(h2)
+  <RBRACKET> { h2.close(); }
+}
+
+/** Parses an identifier, enum, boolean or named-object property,
+  * e.g. 'x: true', 'y: no', 'v: orders', 'type: inner_join',
+  * 'dimension: d {}'. At this stage we don't know the enum
+  * values, so we treat them all as identifiers. */
+void identifierProperty(String propertyName, ObjectHandler h) : {
+  String identifier;
+  ObjectHandler h2;
+}
+{
+  identifier = identifier()
+  (
+    LOOKAHEAD(1)
+    <LBRACE> { h2 = h.objOpen(propertyName, identifier); }
+    objectBody(h2)
+    <RBRACE> { h2.close(); }
+  |
+    /* empty */
+    { h.identifier(propertyName, identifier); }
+  )
+}
+
+/** Parses an object property, e.g. 'x: {y: 2}'. */
+void objectProperty(String propertyName, ObjectHandler h) : {
+  ObjectHandler h2;
+}
+{
+  <LBRACE> { h2 = h.objOpen(propertyName); }
+  objectBody(h2)
+  <RBRACE> { h2.close(); }
+}
+
+/** Parses a value in a list, e.g. '1', 'abc', '"abc"', '[1, [2], []]'. */
+void value(ListHandler h) : {
+  BigDecimal number;
+  String string;
+  ListHandler h2;
+}
+{
+  number = number() { h.number(number); }
+|
+  string = string() { h.string(string); }
+|
+  string = identifier() { h.identifier(string); }
+|
+  <LBRACKET> { h2 = h.listOpen(); }
+  listBody(h2)
+  <RBRACKET> { h2.close(); }
+}
+
+/** Parses a comment inside an object. */
+void commentInObj(ObjectHandler h) : {
+  String comment;
+}
+{
+  comment = comment() { h.comment(comment); }
+}
+
+/** Parses a comment inside a list. */
+void commentInList(ListHandler h) : {
+  String comment;
+}
+{
+  comment = comment() { h.comment(comment); }
+}
+
+/* LITERALS */
+
+<DEFAULT> TOKEN :
+{
+  < NUMBER_LITERAL: ("-")?
+      (["0"-"9"])+
+      ("." (["0"-"9"])+)?
+      (["e", "E"] ("-")?(["0"-"9"])+)? >
+| < QUOTED_STRING: <DOUBLE_QUOTE> ( (~["\"", "\\"]) | ("\\" "\"") | ("\\" "\\") )* <DOUBLE_QUOTE> >
+| < DOUBLE_QUOTE: "\"" >
+
+| < IDENTIFIER: ["a"-"z", "A"-"Z"](["a"-"z", "A"-"Z", "_", "0"-"9"])* >
+
+| < COMMENT: "#" (~["\n", "\r"])* >
+}
+
+<DEFAULT> SKIP :
+{ " "
+| "\t"
+| "\n"
+| "\r"
+| "\f"
+}
+
+<DEFAULT> TOKEN :
+{
+  < #WHITESPACE: [ " ","\t","\n","\r","\f" ] >
+}
+
+<DEFAULT> TOKEN :
+{
+  < COMMA: "," >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < LBRACKET: "[" >
+| < RBRACKET: "]" >
+| < COLON: ":" >
+}
+
+// End LookmlParser.jj
