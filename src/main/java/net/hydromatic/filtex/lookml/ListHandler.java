@@ -45,5 +45,10 @@ public interface ListHandler {
    */
   ListHandler listOpen();
 
-  ListHandler list(Consumer<ListHandler> consumer);
+  default ListHandler list(Consumer<ListHandler> consumer) {
+    ListHandler h = listOpen();
+    consumer.accept(h);
+    h.close();
+    return this;
+  }
 }

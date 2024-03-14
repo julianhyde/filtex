@@ -41,7 +41,12 @@ public interface ObjectHandler {
   ListHandler listOpen(String property);
 
   /** Starts and ends a property whose value is a list. */
-  ObjectHandler list(String property, Consumer<ListHandler> consumer);
+  default ObjectHandler list(String property, Consumer<ListHandler> consumer) {
+    ListHandler h = listOpen(property);
+    consumer.accept(h);
+    h.close();
+    return this;
+  }
 
   /** Starts a property whose value is an object, and returns the handler
    * for the sub-object.
@@ -53,7 +58,13 @@ public interface ObjectHandler {
 
   /** Starts and ends a property whose value is an object, calling a given
    * consumer to allow the user to provide the contents of the object. */
-  ObjectHandler obj(String property, Consumer<ObjectHandler> consumer);
+  default ObjectHandler obj(String property,
+      Consumer<ObjectHandler> consumer) {
+    final ObjectHandler h = objOpen(property);
+    consumer.accept(h);
+    h.close();
+    return this;
+  }
 
   /** Starts a property whose value is a named object, and returns the handler
    * for the sub-object.
@@ -65,8 +76,13 @@ public interface ObjectHandler {
 
   /** Starts and ends a property whose value is a named object, calling a given
    * consumer to allow the user to provide the contents of the object. */
-  ObjectHandler obj(String property, String name,
-      Consumer<ObjectHandler> consumer);
+  default ObjectHandler obj(String property, String name,
+      Consumer<ObjectHandler> consumer) {
+    final ObjectHandler h = objOpen(property, name);
+    consumer.accept(h);
+    h.close();
+    return this;
+  }
 
   /** Closes this object. */
   void close();
