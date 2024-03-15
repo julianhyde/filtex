@@ -23,26 +23,27 @@ import java.util.function.Consumer;
  * @see ListHandler */
 public interface ObjectHandler {
   /** Adds a numeric property. */
-  ObjectHandler number(String property, Number value);
+  ObjectHandler number(String propertyName, Number value);
 
   /** Adds a boolean property. */
-  ObjectHandler bool(String property, boolean value);
+  ObjectHandler bool(String propertyName, boolean value);
 
   /** Adds a string property. */
-  ObjectHandler string(String property, String value);
+  ObjectHandler string(String propertyName, String value);
 
   /** Adds an identifier (unquoted string) property. */
-  ObjectHandler identifier(String property, String value);
+  ObjectHandler identifier(String propertyName, String value);
 
   /** Adds a code  property. (E.g. "sql: select * from orders;;". */
-  ObjectHandler code(String property, String value);
+  ObjectHandler code(String propertyName, String value);
 
   /** Starts a property whose value is a list. */
-  ListHandler listOpen(String property);
+  ListHandler listOpen(String propertyName);
 
   /** Starts and ends a property whose value is a list. */
-  default ObjectHandler list(String property, Consumer<ListHandler> consumer) {
-    ListHandler h = listOpen(property);
+  default ObjectHandler list(String propertyName,
+      Consumer<ListHandler> consumer) {
+    ListHandler h = listOpen(propertyName);
     consumer.accept(h);
     h.close();
     return this;
@@ -58,9 +59,9 @@ public interface ObjectHandler {
 
   /** Starts and ends a property whose value is an object, calling a given
    * consumer to allow the user to provide the contents of the object. */
-  default ObjectHandler obj(String property,
+  default ObjectHandler obj(String propertyName,
       Consumer<ObjectHandler> consumer) {
-    final ObjectHandler h = objOpen(property);
+    final ObjectHandler h = objOpen(propertyName);
     consumer.accept(h);
     h.close();
     return this;
@@ -72,13 +73,13 @@ public interface ObjectHandler {
    * <p>Unlike {@link #obj(String, String, Consumer)},
    * this method does not close the object: the caller
    * must remember to call {@link #close}. */
-  ObjectHandler objOpen(String property, String name);
+  ObjectHandler objOpen(String propertyName, String name);
 
   /** Starts and ends a property whose value is a named object, calling a given
    * consumer to allow the user to provide the contents of the object. */
-  default ObjectHandler obj(String property, String name,
+  default ObjectHandler obj(String propertyName, String name,
       Consumer<ObjectHandler> consumer) {
-    final ObjectHandler h = objOpen(property, name);
+    final ObjectHandler h = objOpen(propertyName, name);
     consumer.accept(h);
     h.close();
     return this;

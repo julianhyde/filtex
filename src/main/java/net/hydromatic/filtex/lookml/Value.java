@@ -24,8 +24,8 @@ abstract class Value {
   abstract void write(LookmlWriter writer);
 
   /** Writes this value as a property. */
-  void write(String property, LookmlWriter writer) {
-    writer.label(property);
+  void write(String propertyName, LookmlWriter writer) {
+    writer.label(propertyName);
     write(writer);
   }
 }

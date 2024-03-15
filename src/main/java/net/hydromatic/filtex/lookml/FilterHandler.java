@@ -16,107 +16,105 @@
  */
 package net.hydromatic.filtex.lookml;
 
-import java.util.function.Consumer;
+/** Handler that forwards all events to a consumer.
+ *
+ * <p>As it stands, it is a no-op. But it is useful for subclassing. */
+class FilterHandler implements ObjectHandler {
+  final ObjectHandler consumer;
 
-/** Handler that converts LookML parse events into strings, and appends those
- * strings to a given consumer. */
-class LoggingHandler implements ObjectHandler {
-  private final Consumer<String> consumer;
-  private final ListHandler listHandler = new LoggingListHandler();
-
-  LoggingHandler(Consumer<String> consumer) {
+  FilterHandler(ObjectHandler consumer) {
     this.consumer = consumer;
   }
 
   @Override public ObjectHandler comment(String comment) {
-    consumer.accept("comment(" + comment + ")");
+    consumer.comment(comment);
     return this;
   }
 
   @Override public ObjectHandler number(String propertyName, Number value) {
-    consumer.accept("number(" + propertyName + ", " + value + ")");
+    consumer.number(propertyName, value);
     return this;
   }
 
   @Override public ObjectHandler bool(String propertyName, boolean value) {
-    consumer.accept("bool(" + propertyName + ", " + value + ")");
+    consumer.bool(propertyName, value);
     return this;
   }
 
   @Override public ObjectHandler string(String propertyName, String value) {
-    consumer.accept("string(" + propertyName + ", " + value + ")");
+    consumer.string(propertyName, value);
     return this;
   }
 
   @Override public ObjectHandler identifier(String propertyName, String value) {
-    consumer.accept("identifier(" + propertyName + ", " + value + ")");
+    consumer.identifier(propertyName, value);
     return this;
   }
 
   @Override public ObjectHandler code(String propertyName, String value) {
-    consumer.accept("code(" + propertyName + ", " + value + ")");
+    consumer.code(propertyName, value);
     return this;
   }
 
   @Override public ListHandler listOpen(String propertyName) {
-    consumer.accept("listOpen(" + propertyName + ")");
-    return listHandler;
+    final ListHandler listHandler = consumer.listOpen(propertyName);
+    return new FilterListHandler(listHandler);
   }
 
   @Override public ObjectHandler objOpen(String property) {
-    consumer.accept("objOpen(" + property + ")");
-    return this;
+    final ObjectHandler objectHandler = consumer.objOpen(property);
+    return new FilterHandler(objectHandler);
   }
 
   @Override public ObjectHandler objOpen(String propertyName, String name) {
-    consumer.accept("objOpen(" + propertyName + ", " + name + ")");
-    return this;
+    final ObjectHandler objectHandler = consumer.objOpen(propertyName, name);
+    return new FilterHandler(objectHandler);
   }
 
   @Override public void close() {
-    consumer.accept("objClose()");
+    consumer.close();
   }
 
-  /** Implementation of {@link net.hydromatic.filtex.lookml.ListHandler}
-   * that logs events, as strings, to a consumer.
-   *
-   * <p>This class is necessary because there are methods in common between
-   * the {@link ObjectHandler} and {@link ListHandler} interfaces. If there
-   * were no methods in common, a single object could have implemented both
-   * interfaces. */
-  private class LoggingListHandler implements ListHandler {
+  /** Implementation of {@link ListHandler} that forwards to a consumer. */
+  private static class FilterListHandler implements ListHandler {
+    final ListHandler consumer;
+
+    private FilterListHandler(ListHandler consumer) {
+      this.consumer = consumer;
+    }
+
     @Override public ListHandler string(String value) {
-      consumer.accept("string(" + value + ")");
+      consumer.string(value);
       return this;
     }
 
     @Override public ListHandler number(Number value) {
-      consumer.accept("number(" + value + ")");
+      consumer.number(value);
       return this;
     }
 
     @Override public ListHandler bool(boolean value) {
-      consumer.accept("string(" + value + ")");
+      consumer.bool(value);
       return this;
     }
 
     @Override public ListHandler identifier(String value) {
-      consumer.accept("identifier(" + value + ")");
+      consumer.identifier(value);
       return this;
     }
 
     @Override public ListHandler comment(String comment) {
-      consumer.accept("comment(" + comment + ")");
+      consumer.comment(comment);
       return this;
     }
 
     @Override public ListHandler listOpen() {
-      consumer.accept("listOpen()");
-      return this;
+      final ListHandler listHandler = consumer.listOpen();
+      return new FilterListHandler(listHandler);
     }
 
     @Override public void close() {
-      consumer.accept("listClose()");
+      consumer.close();
     }
   }
 }

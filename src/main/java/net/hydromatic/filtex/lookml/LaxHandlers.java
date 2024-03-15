@@ -42,6 +42,33 @@ public class LaxHandlers {
     return new LoggingHandler(list);
   }
 
+  /** Creates a handler that writes each error event, as a string,
+   *  to a consumer. */
+  public static ErrorHandler errorLogger(Consumer<String> list) {
+    return new LoggingErrorHandler(list);
+  }
+
+  /** Creates a handler that writes each event, as a string, to a consumer. */
+  public static ObjectHandler filter(ObjectHandler consumer) {
+    return new FilterHandler(consumer);
+  }
+
+  /** Creates a handler that validates each event against a
+   * {@link LookmlSchema}. */
+  public static ObjectHandler validator(ObjectHandler consumer,
+      LookmlSchema schema, ErrorHandler errorHandler) {
+    return ValidatingHandler.create(schema, consumer, errorHandler);
+  }
+
+  /** Creates a list handler that swallows all events. */
+  public static ListHandler nullListHandler() {
+    return NullListHandler.INSTANCE;
+  }
+
+  public static ObjectHandler nullObjectHandler() {
+    return NullObjectHandler.INSTANCE;
+  }
+
   /** Builder for the root element. Ordinary builders that have
    * a parent simply write to that parent, but this builder writes to a
    * {@link LookmlWriter}. */
@@ -67,39 +94,40 @@ public class LaxHandlers {
       return this;
     }
 
-    @Override public ObjectBuilder number(String property, Number value) {
-      properties.add(property, Values.number(value));
+    @Override public ObjectBuilder number(String propertyName, Number value) {
+      properties.add(propertyName, Values.number(value));
       return this;
     }
 
-    @Override public ObjectBuilder bool(String property, boolean value) {
-      properties.add(property, Values.bool(value));
+    @Override public ObjectBuilder bool(String propertyName, boolean value) {
+      properties.add(propertyName, Values.bool(value));
       return this;
     }
 
-    @Override public ObjectBuilder string(String property, String value) {
-      properties.add(property, Values.string(value));
+    @Override public ObjectBuilder string(String propertyName, String value) {
+      properties.add(propertyName, Values.string(value));
       return this;
     }
 
-    @Override public ObjectBuilder identifier(String property, String value) {
-      properties.add(property, Values.identifier(value));
+    @Override public ObjectBuilder identifier(String propertyName,
+        String value) {
+      properties.add(propertyName, Values.identifier(value));
       return this;
     }
 
-    @Override public ObjectBuilder code(String property, String value) {
-      properties.add(property, Values.code(value));
+    @Override public ObjectBuilder code(String propertyName, String value) {
+      properties.add(propertyName, Values.code(value));
       return this;
     }
 
-    @Override public ListBuilder listOpen(String property) {
+    @Override public ListBuilder listOpen(String propertyName) {
       return new ListBuilder(list ->
-          properties.add(property, Values.list(list)));
+          properties.add(propertyName, Values.list(list)));
     }
 
-    @Override public ObjectHandler objOpen(String property, String name) {
+    @Override public ObjectHandler objOpen(String propertyName, String name) {
       return new ObjectBuilder(properties ->
-          this.properties.add(property,
+          this.properties.add(propertyName,
               Values.namedObject(name, properties)));
     }
 
@@ -156,6 +184,85 @@ public class LaxHandlers {
 
     @Override public void close() {
       onClose.accept(list);
+    }
+  }
+
+  /** Implementation of {@link net.hydromatic.filtex.lookml.ListHandler}
+   * that discards all events. */
+  enum NullListHandler implements ListHandler {
+    INSTANCE;
+
+    @Override public ListHandler string(String value) {
+      return this;
+    }
+
+    @Override public ListHandler number(Number value) {
+      return this;
+    }
+
+    @Override public ListHandler bool(boolean value) {
+      return this;
+    }
+
+    @Override public ListHandler identifier(String value) {
+      return this;
+    }
+
+    @Override public ListHandler comment(String comment) {
+      return this;
+    }
+
+    @Override public void close() {
+    }
+
+    @Override public ListHandler listOpen() {
+      return this; // no point creating another instance
+    }
+  }
+
+  /** Implementation of {@link net.hydromatic.filtex.lookml.ObjectHandler}
+   * that discards all events. */
+  enum NullObjectHandler implements ObjectHandler {
+    INSTANCE;
+
+    @Override public ObjectHandler number(String propertyName, Number value) {
+      return this;
+    }
+
+    @Override public ObjectHandler bool(String propertyName, boolean value) {
+      return this;
+    }
+
+    @Override public ObjectHandler string(String propertyName, String value) {
+      return this;
+    }
+
+    @Override public ObjectHandler identifier(String propertyName,
+        String value) {
+      return this;
+    }
+
+    @Override public ObjectHandler code(String propertyName, String value) {
+      return this;
+    }
+
+    @Override public ListHandler listOpen(String propertyName) {
+      return NullListHandler.INSTANCE;
+    }
+
+    @Override public ObjectHandler objOpen(String property) {
+      return this;
+    }
+
+    @Override public ObjectHandler objOpen(String propertyName, String name) {
+      return this;
+    }
+
+    @Override public void close() {
+    }
+
+    @Override public ObjectHandler comment(String comment) {
+      return this;
     }
   }
 }
