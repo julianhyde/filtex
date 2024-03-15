@@ -40,6 +40,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -64,6 +65,11 @@ public class LookmlParserImpl implements LookmlParser {
     jj_input_stream.setTabSize(tabSize);
   }
 
+  public void setCodePropertyNames(Set<String> codePropertyNames) {
+    this.codePropertyNames = codePropertyNames;
+  }
+
+  Set<String> codePropertyNames;
   String file; // for future multi-file support
   int lineOffset; // for future multi-file support
 
@@ -154,7 +160,14 @@ void property(ObjectHandler h) : {
 {
   propertyName = identifier()
   <COLON>
+  {
+    if (codePropertyNames.contains(propertyName)) {
+      token_source.SwitchTo(IN_CODE);
+    }
+  }
   (
+    codeProperty(propertyName, h)
+  |
     identifierProperty(propertyName, h)
   |
     numberProperty(propertyName, h)
@@ -165,6 +178,19 @@ void property(ObjectHandler h) : {
   |
     objectProperty(propertyName, h)
   )
+}
+
+/** Parses a code property, e.g. 'sql: VALUES 1;;'.
+ *
+ * <p>Must be in the {@link #IN_CODE} lexical state. */
+void codeProperty(String propertyName, ObjectHandler h) : {
+  StringBuilder b = new StringBuilder();
+}
+{
+  ( <CODE> { b.append(token.image); } )*
+  <END_CODE> {
+    h.code(propertyName, b.toString());
+  }
 }
 
 /** Parses a number property, e.g. 'p: 1', 'q: -2', 'r: -3.5'. */
@@ -299,6 +325,15 @@ void commentInList(ListHandler h) : {
 | < LBRACKET: "[" >
 | < RBRACKET: "]" >
 | < COLON: ":" >
+}
+
+// A separate lexical state for parsing code blocks, e.g. "sql: ...;;"
+// The parser enters the IN_CODE lexical state after seeing the "sql"
+// identifier. Seeing ";;" leaves the lexical state.
+<IN_CODE> TOKEN :
+{
+  < END_CODE: ";;" > : DEFAULT
+| < CODE: ~[] >
 }
 
 // End LookmlParser.jj

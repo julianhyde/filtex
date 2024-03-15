@@ -22,11 +22,14 @@ import net.hydromatic.filtex.lookml.LookmlSchema;
 import net.hydromatic.filtex.lookml.LookmlSchemas;
 import net.hydromatic.filtex.lookml.ObjectHandler;
 
+import com.google.common.collect.ImmutableSortedSet;
+
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
@@ -38,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the LookML event-based parser. */
 public class LaxTest {
+  private static final Set<String> CODES = ImmutableSortedSet.of("sql");
+
   private static void generateSampleEvents(ObjectHandler h) {
     h.obj("model", "m", h1 ->
             h1.number("n", 1)
@@ -58,14 +63,14 @@ public class LaxTest {
 
   private static void assertParse(String s, Matcher<List<String>> matcher) {
     final List<String> list = new ArrayList<>();
-    LaxParser.parse(s, LaxHandlers.logger(list::add));
+    LaxParser.parse(LaxHandlers.logger(list::add), CODES, s);
     assertThat(list, matcher);
   }
 
   private static void assertParseThrows(String s, Matcher<Throwable> matcher) {
     try {
       final List<String> list = new ArrayList<>();
-      LaxParser.parse(s, LaxHandlers.logger(list::add));
+      LaxParser.parse(LaxHandlers.logger(list::add), CODES, s);
       fail("expected error, got " + list);
     } catch (RuntimeException e) {
       assertThat(e, matcher);
@@ -227,6 +232,14 @@ public class LaxTest {
             + "    <IDENTIFIER> ...\n"
             + "    <COMMENT> ...\n"
             + "    "));
+    assertParse("model: m {\n"
+            + "  sql: multi\n"
+            + "     line;;\n"
+            + "}",
+        hasToString("[objOpen(model, m),"
+            + " code(sql,  multi\n"
+            + "     line),"
+            + " objClose()]"));
   }
 
   /** Tests building a simple schema with one enum type. */

@@ -19,15 +19,20 @@ package net.hydromatic.filtex.lookml;
 import net.hydromatic.filtex.lookml.parse.LookmlParserImpl;
 import net.hydromatic.filtex.lookml.parse.ParseException;
 
+import com.google.common.collect.ImmutableSortedSet;
+
 import java.io.StringReader;
+import java.util.Collection;
 
 /** LookML parser that sends a sequence of events to a consumer. */
 public class LaxParser {
   private LaxParser() {}
 
   /** Parses a LookML string. */
-  public static void parse(String s, ObjectHandler handler) {
+  public static void parse(ObjectHandler handler,
+      Collection<String> codePropertyNames, String s) {
     final LookmlParserImpl parser = new LookmlParserImpl(new StringReader(s));
+    parser.setCodePropertyNames(ImmutableSortedSet.copyOf(codePropertyNames));
     try {
       parser.document(handler);
     } catch (ParseException e) {
