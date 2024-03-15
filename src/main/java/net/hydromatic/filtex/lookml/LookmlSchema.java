@@ -46,6 +46,11 @@ public interface LookmlSchema {
    */
   Map<String, EnumType> enumTypes();
 
+  /** Returns the names of properties that have code values.
+   * If a property sometimes has a code value and sometimes another
+   * type, it is an error. */
+  SortedSet<String> codePropertyNames();
+
   /** Describes the value-type of a property. */
   enum Type {
     /** Numeric value. E.g. '{@code precision: 10}'. */

@@ -24,8 +24,11 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -143,7 +146,28 @@ public class LookmlSchemas {
     final Map<String, ObjectTypeImpl> objectTypes = new LinkedHashMap<>();
 
     @Override public LookmlSchema build() {
-      return new SchemaImpl(rootPropertyMap, objectTypes, enumTypes);
+      // Deduce the set of 'code' properties
+      final Set<String> codePropertyNames = new TreeSet<>();
+      forEachProperty(property -> {
+        if (property.type() == LookmlSchema.Type.CODE) {
+          codePropertyNames.add(property.name());
+        }
+      });
+      // Make sure no 'code' properties are used for non-code
+      forEachProperty(property -> {
+        if (property.type() != LookmlSchema.Type.CODE
+            && codePropertyNames.contains(property.name())) {
+          throw new IllegalArgumentException("property '" + property.name()
+              + "' has both code and non-code uses");
+        }
+      });
+      return new SchemaImpl(rootPropertyMap, objectTypes, enumTypes,
+          codePropertyNames);
+    }
+
+    private void forEachProperty(Consumer<LookmlSchema.Property> consumer) {
+      objectTypes.values().forEach(objectType ->
+          objectType.propertyMap.values().forEach(consumer));
     }
 
     @Override public SchemaBuilder addEnum(String name,
@@ -196,13 +220,16 @@ public class LookmlSchemas {
     final Map<String, Property> rootPropertyMap;
     final Map<String, ObjectType> objectTypes;
     final Map<String, EnumType> enumTypes;
+    final SortedSet<String> codePropertyNames;
 
     SchemaImpl(Map<String, PropertyImpl> rootPropertyMap,
         Map<String, ObjectTypeImpl> objectTypes,
-        Map<String, EnumTypeImpl> enumTypes) {
+        Map<String, EnumTypeImpl> enumTypes,
+        Iterable<String> codePropertyNames) {
       this.rootPropertyMap = ImmutableMap.copyOf(rootPropertyMap);
       this.objectTypes = ImmutableMap.copyOf(objectTypes);
       this.enumTypes = ImmutableMap.copyOf(enumTypes);
+      this.codePropertyNames = ImmutableSortedSet.copyOf(codePropertyNames);
     }
 
     @Override public Map<String, Property> rootProperties() {
@@ -215,6 +242,10 @@ public class LookmlSchemas {
 
     @Override public Map<String, EnumType> enumTypes() {
       return enumTypes;
+    }
+
+    @Override public SortedSet<String> codePropertyNames() {
+      return codePropertyNames;
     }
   }
 

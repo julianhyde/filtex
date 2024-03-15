@@ -37,6 +37,7 @@ import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.hasToString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the LookML event-based parser. */
@@ -279,6 +280,28 @@ public class LaxTest {
     assertThat(s.objectTypes().get("model"), notNullValue());
     assertThat(s.objectTypes().get("model").properties().keySet(),
         hasToString("[empty_object, x, y, z]"));
+  }
+
+  /** Tests building a schema where the same property name ("sql") is used for
+   * both code and non-code properties. */
+  @Test void testSchemaBuilderFailsWithMixedCodeProperties() {
+    try {
+      LookmlSchema s =
+          LookmlSchemas.schemaBuilder()
+              .addObjectType("view",
+                  b -> b.addNumberProperty("x")
+                      .addCodeProperty("sql")
+                      .build())
+              .addObjectType("dimension",
+                  b -> b.addNumberProperty("y")
+                      .addStringProperty("sql")
+                      .build())
+              .build();
+      fail("expected error, got " + s);
+    } catch (IllegalArgumentException e) {
+      assertThat(e.getMessage(),
+          is("property 'sql' has both code and non-code uses"));
+    }
   }
 
   /** Tests building core LookML schema. */
