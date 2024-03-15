@@ -209,9 +209,8 @@ public class LaxTest {
         hasToString("java.lang.RuntimeException: "
             + "net.hydromatic.filtex.lookml.parse.ParseException: "
             + "Encountered \"<EOF>\" at line 1, column 16.\n"
-            + "Was expecting one of:\n"
+            + "Was expecting:\n"
             + "    <IDENTIFIER> ...\n"
-            + "    <COMMENT> ...\n"
             + "    "));
     assertParseThrows("abc",
         hasToString("java.lang.RuntimeException: "
@@ -246,9 +245,8 @@ public class LaxTest {
         hasToString("java.lang.RuntimeException: "
             + "net.hydromatic.filtex.lookml.parse.ParseException: "
             + "Encountered \"<EOF>\" at line 0, column 0.\n"
-            + "Was expecting one of:\n"
+            + "Was expecting:\n"
             + "    <IDENTIFIER> ...\n"
-            + "    <COMMENT> ...\n"
             + "    "));
     assertParse("model: m {\n"
             + "  sql: multi\n"
