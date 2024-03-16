@@ -23,6 +23,7 @@ import net.hydromatic.filtex.lookml.LookmlSchema;
 import net.hydromatic.filtex.lookml.LookmlSchemas;
 import net.hydromatic.filtex.lookml.ObjectHandler;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
@@ -79,6 +81,34 @@ public class LaxTest {
     }
   }
 
+  /** Subtracts one list from another in a merge-like manner. */
+  private static <E> List<E> minus(List<E> list0, List<E> list1) {
+    List<E> list = new ArrayList<>();
+    for (int i0 = 0, i1 = 0; i0 < list0.size();) {
+      if (i1 < list1.size() && list0.get(i0).equals(list1.get(i1))) {
+        // This element is in both. Skip it in both.
+        ++i0;
+        ++i1;
+      } else {
+        list.add(list0.get(i0));
+        ++i0;
+      }
+    }
+    return list;
+  }
+
+  @Test void testMinus() {
+    final List<Integer> list = ImmutableList.of();
+    final List<Integer> list123 = ImmutableList.of(1, 2, 3);
+    final List<Integer> list1232 = ImmutableList.of(1, 2, 3, 2);
+    final List<Integer> list2 = ImmutableList.of(2);
+    final List<Integer> list13 = ImmutableList.of(1, 3);
+    assertThat(minus(list123, list), hasToString("[1, 2, 3]"));
+    assertThat(minus(list123, list13), hasToString("[2]"));
+    assertThat(minus(list123, list2), hasToString("[1, 3]"));
+    assertThat(minus(list1232, list2), hasToString("[1, 3, 2]"));
+  }
+
   /** Creates a schema that is a subset of standard LookML. */
   static LookmlSchema coreSchema() {
     return LookmlSchemas.schemaBuilder()
@@ -94,11 +124,17 @@ public class LaxTest {
             "median_distinct", "min", "number", "percent_of_previous",
             "percent_of_total", "percentile", "percentile_distinct",
             "running_total", "string", "sum", "sum_distinct", "yesno")
+        .addObjectType("conditionally_filter", b ->
+            b.addRefStringMapProperty("filters")
+                .addRefListProperty("unless")
+                .build())
         .addObjectType("dimension", b ->
             b.addEnumProperty("type", "dimension_field_type")
                 .addCodeProperty("sql")
                 .addStringProperty("label")
                 .addEnumProperty("primary_key", "boolean")
+                .addStringListProperty("tags")
+                .addRefListProperty("drill_fields")
                 .build())
         .addObjectType("measure", b ->
             b.addEnumProperty("type", "measure_field_type")
@@ -121,6 +157,7 @@ public class LaxTest {
             b.addRefProperty("from")
                 .addRefProperty("view_name")
                 .addNamedObjectProperty("join")
+                .addObjectProperty("conditionally_filter")
                 .build())
         .addNamedObjectProperty("model", b ->
             b.addNamedObjectProperty("explore")
@@ -323,7 +360,7 @@ public class LaxTest {
   /** Tests building core LookML schema. */
   @Test void testSchemaBuilder3() {
     final LookmlSchema schema = coreSchema();
-    assertThat(schema.objectTypes(), aMapWithSize(6));
+    assertThat(schema.objectTypes(), aMapWithSize(7));
     assertThat(schema.enumTypes(), aMapWithSize(5));
     assertThat(schema.rootProperties(), aMapWithSize(1));
   }
@@ -343,6 +380,18 @@ public class LaxTest {
         hasToString("[nameRequired(model)]"));
     assertThat("all events should be discarded", f3.list, hasSize(0));
 
+    final Consumer<String> fn = m -> {
+      ParseFixture f4 = f.parse("model: " + m);
+      assertThat(f4.errorList,
+          hasToString("[invalidRootProperty(model)]"));
+      assertThat("all events should be discarded", f4.list, hasSize(0));
+    };
+    fn.accept("1");
+    fn.accept("\"a string\"");
+    fn.accept("yes");
+    fn.accept("inner_join");
+    fn.accept("[]");
+
     ParseFixture f4 = f.parse("model: m {\n"
         + "  dimension: d {}\n"
         + "}");
@@ -357,6 +406,8 @@ public class LaxTest {
         + "      sql: VALUES ;;\n"
         + "      type: number\n"
         + "      label: \"a label\"\n"
+        + "      tags: 123\n"
+        + "      drill_fields: true\n"
         + "    }\n"
         + "    measure: m {\n"
         + "      sql: VALUES 1;;\n"
@@ -367,19 +418,57 @@ public class LaxTest {
         + "      type: average\n"
         + "      primary_key: \"a string\"\n"
         + "    }\n"
+        + "    bad_object: {\n"
+        + "      type: median\n"
+        + "    }\n"
+        + "  }\n"
+        + "  explore: e {\n"
+        + "    conditionally_filter: {\n"
+        + "      filters: [f1: \"123\", f2: \"abc\"]\n"
+        + "      unless: [f3, f4]\n"
+        + "    }\n"
+        + "  }\n"
+        + "  explore: e2 {\n"
+        + "    conditionally_filter: {\n"
+        + "      bad: true\n"
+        + "      filters: true\n"
+        + "      unless: [\"a\", 1, f3, [2]]\n"
+        + "    }\n"
         + "  }\n"
         + "}");
     assertThat(f5.errorList,
-        hasToString("[invalidPropertyType(label, STRING, NUMBER),"
+        hasToString("["
+            + "invalidPropertyType(tags, STRING_LIST, NUMBER),"
+            + " invalidPropertyType(drill_fields, REF_LIST, REF),"
+            + " invalidPropertyType(label, STRING, NUMBER),"
             + " invalidPropertyType(dimension, type, "
             + "dimension_field_type, average),"
-            + " invalidPropertyType(primary_key, ENUM, STRING)]"));
+            + " invalidPropertyType(primary_key, ENUM, STRING),"
+            + " invalidPropertyOfParent(bad_object, view),"
+            + " invalidPropertyOfParent(bad, conditionally_filter),"
+            + " invalidPropertyType(filters, REF_STRING_MAP, REF),"
+            + " invalidListElement(unless, STRING, REF_LIST),"
+            + " invalidListElement(unless, NUMBER, REF_LIST),"
+            + " invalidListElement(unless, REF_LIST, REF_LIST)"
+            + "]"));
     final List<String> discardedEvents = f5.discardedEvents();
-    assertThat(discardedEvents, hasSize(3));
+    assertThat(discardedEvents, hasSize(15));
     assertThat(discardedEvents,
-        hasToString("[number(label, 1),"
+        hasToString("[number(tags, 123),"
+            + " identifier(drill_fields, true),"
+            + " number(label, 1),"
             + " identifier(type, average),"
-            + " string(primary_key, a string)]"));
+            + " string(primary_key, a string),"
+            + " objOpen(bad_object),"
+            + " identifier(type, median),"
+            + " objClose(),"
+            + " identifier(bad, true),"
+            + " identifier(filters, true),"
+            + " string(a),"
+            + " number(1),"
+            + " listOpen(),"
+            + " number(2),"
+            + " listClose()]"));
   }
 
   /** Contains necessary state for testing the parser and validator. */
@@ -436,14 +525,7 @@ public class LaxTest {
       final List<String> list2 = new ArrayList<>();
       final ObjectHandler logger = LaxHandlers.logger(list2::add);
       LaxParser.parse(logger, codePropertyNames, s);
-      final List<String> list3 = new ArrayList<>(list2);
-      for (String string : list) {
-        final int i = list3.indexOf(string);
-        if (i >= 0) {
-          list3.remove(i);
-        }
-      }
-      return list3;
+      return minus(list2, list);
     }
   }
 }

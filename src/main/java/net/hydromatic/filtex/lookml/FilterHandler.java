@@ -76,10 +76,10 @@ class FilterHandler implements ObjectHandler {
   }
 
   /** Implementation of {@link ListHandler} that forwards to a consumer. */
-  private static class FilterListHandler implements ListHandler {
+  static class FilterListHandler implements ListHandler {
     final ListHandler consumer;
 
-    private FilterListHandler(ListHandler consumer) {
+    FilterListHandler(ListHandler consumer) {
       this.consumer = consumer;
     }
 
@@ -100,6 +100,11 @@ class FilterHandler implements ObjectHandler {
 
     @Override public ListHandler identifier(String value) {
       consumer.identifier(value);
+      return this;
+    }
+
+    @Override public ListHandler pair(String ref, String identifier) {
+      consumer.pair(ref, identifier);
       return this;
     }
 

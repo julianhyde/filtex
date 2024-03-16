@@ -98,9 +98,20 @@ public interface LookmlSchema {
      * e.g. '{@code drill_fields: [id, name, city, state]}'. */
     REF_LIST,
 
-    /** Value that is a list of references to an objects in this model,
+    /** Value that is a list of strings,
+     * e.g. '{@code tags: ["abc", "wyxz"]}'. */
+    STRING_LIST,
+
+    /** Value that is a list of reference-string pairs,
      * e.g. '{@code filters: [id: "123", customer.id: "789"]}'. */
-    REF_STRING_MAP
+    REF_STRING_MAP,
+
+    /** Value that is a reference-string pair,
+     * e.g. '{@code id: "123"}'.
+     *
+     * <p>Never occurs as a property, only as an element of a list of type
+     * {@link #REF_STRING_MAP}.*/
+    REF_STRING
   }
 
   /** Describes a LookML type that has a fixed set of values.

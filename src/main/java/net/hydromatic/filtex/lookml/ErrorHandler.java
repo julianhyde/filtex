@@ -41,6 +41,10 @@ public interface ErrorHandler {
    * type. */
   void invalidEnumValue(String parentTypeName, String propertyName,
       String typeName, String value);
+
+  /** Called when an element in a list does not match the list type. */
+  void invalidListElement(String propertyName,
+      LookmlSchema.Type actualElementType, LookmlSchema.Type listType);
 }
 
 // End ErrorHandler.java

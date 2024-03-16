@@ -258,6 +258,7 @@ void objectProperty(String propertyName, ObjectHandler h) : {
 void value(ListHandler h) : {
   BigDecimal number;
   String string;
+  String identifier;
   ListHandler h2;
 }
 {
@@ -265,7 +266,12 @@ void value(ListHandler h) : {
 |
   string = string() { h.string(string); }
 |
-  string = identifier() { h.identifier(string); }
+  identifier = identifier()
+  (
+     <COLON> string = string() { h.pair(identifier, string); }
+  |
+     { h.identifier(identifier); }
+  )
 |
   <LBRACKET> { h2 = h.listOpen(); }
   listBody(h2)

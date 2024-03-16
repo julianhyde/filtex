@@ -31,6 +31,8 @@ import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import static java.util.Objects.requireNonNull;
 
 /** Utilities for {@link LookmlSchema}. */
@@ -112,6 +114,15 @@ public class LookmlSchemas {
      * <p>{@link SchemaBuilder#getEnumType(String)} must already
      * contain a type named {@code typeName}. */
     ObjectTypeBuilder addEnumProperty(String propertyName, String typeName);
+
+    /** Creates a property whose value is a list of strings. */
+    ObjectTypeBuilder addStringListProperty(String propertyName);
+
+    /** Creates a property whose value is a list of references. */
+    ObjectTypeBuilder addRefListProperty(String propertyName);
+
+    /** Creates a property whose value is a list of reference-string pairs. */
+    ObjectTypeBuilder addRefStringMapProperty(String propertyName);
 
     /** Creates an object property,
      * using an existing type named {@code propertyName}.
@@ -286,9 +297,10 @@ public class LookmlSchemas {
     private final String typeName;
 
     PropertyImpl(String name, LookmlSchema.Type type, String typeName) {
-      this.name = name;
-      this.type = type;
-      this.typeName = typeName;
+      this.name = requireNonNull(name);
+      this.type = requireNonNull(type);
+      this.typeName = requireNonNull(typeName);
+      checkArgument(type != LookmlSchema.Type.REF_STRING);
     }
 
     @Override public String name() {
@@ -340,6 +352,20 @@ public class LookmlSchemas {
     @Override public ObjectTypeBuilder addEnumProperty(String propertyName,
         String typeName) {
       return addProperty_(propertyName, LookmlSchema.Type.ENUM, typeName);
+    }
+
+    @Override public ObjectTypeBuilder addStringListProperty(
+        String propertyName) {
+      return addProperty_(propertyName, LookmlSchema.Type.STRING_LIST, "");
+    }
+
+    @Override public ObjectTypeBuilder addRefListProperty(String propertyName) {
+      return addProperty_(propertyName, LookmlSchema.Type.REF_LIST, "");
+    }
+
+    @Override public ObjectTypeBuilder addRefStringMapProperty(
+        String propertyName) {
+      return addProperty_(propertyName, LookmlSchema.Type.REF_STRING_MAP, "");
     }
 
     @Override public ObjectTypeBuilder addObjectProperty(String propertyName) {

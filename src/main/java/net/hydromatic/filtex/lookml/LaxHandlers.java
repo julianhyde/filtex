@@ -173,6 +173,11 @@ public class LaxHandlers {
       return this;
     }
 
+    @Override public ListHandler pair(String ref, String identifier) {
+      list.add(Values.pair(ref, identifier));
+      return this;
+    }
+
     @Override public ListHandler comment(String comment) {
       // Ignore the comment
       return this;
@@ -205,6 +210,10 @@ public class LaxHandlers {
     }
 
     @Override public ListHandler identifier(String value) {
+      return this;
+    }
+
+    @Override public ListHandler pair(String ref, String identifier) {
       return this;
     }
 

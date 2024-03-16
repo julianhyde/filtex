@@ -54,4 +54,10 @@ class LoggingErrorHandler implements ErrorHandler {
     consumer.accept("invalidPropertyType(" + parentTypeName
         + ", " + propertyName + ", " + typeName + ", " + value + ")");
   }
+
+  @Override public void invalidListElement(String propertyName,
+      LookmlSchema.Type actualElementType, LookmlSchema.Type listType) {
+    consumer.accept("invalidListElement(" + propertyName + ", "
+        + actualElementType + ", " + listType + ")");
+  }
 }

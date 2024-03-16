@@ -34,6 +34,9 @@ public interface ListHandler {
   /** Adds an identifier to this list. */
   ListHandler identifier(String value);
 
+  /** Adds a string-identifier pair to this list. */
+  ListHandler pair(String ref, String identifier);
+
   /** Adds a comment to this list. */
   ListHandler comment(String comment);
 

@@ -105,6 +105,11 @@ class LoggingHandler implements ObjectHandler {
       return this;
     }
 
+    @Override public ListHandler pair(String ref, String identifier) {
+      consumer.accept("pair(" + ref + ", " + identifier + ")");
+      return this;
+    }
+
     @Override public ListHandler comment(String comment) {
       consumer.accept("comment(" + comment + ")");
       return this;

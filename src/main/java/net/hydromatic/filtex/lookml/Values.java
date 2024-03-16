@@ -59,6 +59,10 @@ class Values {
     return new ObjectValue(properties);
   }
 
+  static Value pair(String ref, String identifier) {
+    return new PairValue(ref, identifier);
+  }
+
   /** Value of a property or list element whose value is an identifier. */
   static class IdentifierValue extends Value {
     private final String id;
@@ -121,6 +125,22 @@ class Values {
 
     @Override void write(LookmlWriter writer) {
       writer.code(s);
+    }
+  }
+
+  /** Value of a property whose value is a ref-string pair. */
+  static class PairValue extends Value {
+    private final String ref;
+    private final String s;
+
+    PairValue(String ref, String s) {
+      this.ref = ref;
+      this.s = s;
+    }
+
+    @Override void write(LookmlWriter writer) {
+      writer.label(ref);
+      writer.string(s);
     }
   }
 
