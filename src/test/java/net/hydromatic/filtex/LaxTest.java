@@ -98,6 +98,7 @@ public class LaxTest {
             b.addEnumProperty("type", "dimension_field_type")
                 .addCodeProperty("sql")
                 .addStringProperty("label")
+                .addEnumProperty("primary_key", "boolean")
                 .build())
         .addObjectType("measure", b ->
             b.addEnumProperty("type", "measure_field_type")
@@ -355,7 +356,7 @@ public class LaxTest {
         + "    dimension: d {\n"
         + "      sql: VALUES ;;\n"
         + "      type: number\n"
-        + "      label: 1\n"
+        + "      label: \"a label\"\n"
         + "    }\n"
         + "    measure: m {\n"
         + "      sql: VALUES 1;;\n"
@@ -364,18 +365,24 @@ public class LaxTest {
         + "    }\n"
         + "    dimension: d2 {\n"
         + "      type: average\n"
+        + "      primary_key: \"a string\"\n"
         + "    }\n"
         + "  }\n"
         + "}");
     assertThat(f5.errorList,
-        hasToString("[invalidPropertyType(dimension, type,"
-            + " dimension_field_type, average)]"));
+        hasToString("[invalidPropertyType(label, STRING, NUMBER),"
+            + " invalidPropertyType(dimension, type, "
+            + "dimension_field_type, average),"
+            + " invalidPropertyType(primary_key, ENUM, STRING)]"));
     final List<String> discardedEvents = f5.discardedEvents();
-    assertThat("d events should be discarded", discardedEvents, hasSize(1));
-    assertThat(discardedEvents, hasToString("[identifier(type, average)]"));
+    assertThat(discardedEvents, hasSize(3));
+    assertThat(discardedEvents,
+        hasToString("[number(label, 1),"
+            + " identifier(type, average),"
+            + " string(primary_key, a string)]"));
   }
 
-  /** Contains necesssary state for testing the parser and validator. */
+  /** Contains necessary state for testing the parser and validator. */
   static class ParseFixture {
     private final List<String> list;
     private final List<String> errorList;

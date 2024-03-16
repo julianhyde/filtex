@@ -16,9 +16,12 @@
  */
 package net.hydromatic.filtex.lookml;
 
+import com.google.common.collect.ImmutableSet;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 
 import static java.util.Objects.requireNonNull;
@@ -45,101 +48,6 @@ abstract class ValidatingHandler extends FilterHandler {
     return new RootValidatingHandler(consumer, schema, errorHandler);
   }
 
-  /** Returns whether we are validating the root object. */
-  boolean isRoot() {
-    return root() == this;
-  }
-
-  /** Returns the validator that is validating the root object. */
-  abstract RootValidatingHandler root();
-
-  /** Returns the name of the enclosing object type.
-   * Invalid if this is the root. */
-  String parentTypeName() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override public ObjectHandler identifier(String propertyName, String value) {
-    final LookmlSchema.Property property = propertyMap.get(propertyName);
-    if (property == null) {
-      root().errorHandler.invalidPropertyOfParent(propertyName,
-          parentTypeName());
-      return this;
-    }
-    final LookmlSchema.Type propertyType = property.type();
-    if (propertyType != LookmlSchema.Type.REF
-        && propertyType != LookmlSchema.Type.ENUM) {
-      root().errorHandler.invalidPropertyType(propertyName, propertyType,
-          LookmlSchema.Type.REF);
-      return this;
-    }
-    if (propertyType == LookmlSchema.Type.ENUM) {
-      LookmlSchema.EnumType enumType =
-          requireNonNull(root().schema.enumTypes().get(property.typeName()));
-      if (!enumType.allowedValues().contains(value)) {
-        root().errorHandler.invalidEnumValue(parentTypeName(), propertyName,
-            property.typeName(), value);
-        return this;
-      }
-    }
-    return super.identifier(propertyName, value);
-  }
-
-  @Override public ObjectHandler objOpen(String propertyName) {
-    final LookmlSchema.Property property =
-        propertyMap.get(propertyName);
-    if (isRoot()) {
-      if (property != null
-          && property.type() == LookmlSchema.Type.NAMED_OBJECT) {
-        root().errorHandler.nameRequired(propertyName);
-      } else {
-        root().errorHandler.invalidRootProperty(propertyName);
-      }
-      return LaxHandlers.nullObjectHandler();
-    }
-    if (propertyIsInvalid(propertyName, property, LookmlSchema.Type.OBJECT)) {
-      return LaxHandlers.nullObjectHandler();
-    }
-
-    return super.objOpen(propertyName);
-  }
-
-  @Override public ObjectHandler objOpen(String propertyName, String name) {
-    final LookmlSchema.Property property =
-        propertyMap.get(propertyName);
-    if (isRoot()) {
-      if (property == null) {
-        root().errorHandler.invalidRootProperty(propertyName);
-        return LaxHandlers.nullObjectHandler();
-      }
-    } else {
-      if (propertyIsInvalid(propertyName, property,
-          LookmlSchema.Type.NAMED_OBJECT)) {
-        return LaxHandlers.nullObjectHandler();
-      }
-    }
-    final ObjectHandler objectHandler = consumer.objOpen(propertyName, name);
-    final LookmlSchema.ObjectType objectType =
-        root().schema.objectTypes().get(propertyName);
-    return new NonRootValidatingHandler(objectHandler, this, propertyName,
-        objectType.properties());
-  }
-
-  private boolean propertyIsInvalid(String propertyName,
-      LookmlSchema.@Nullable Property property, LookmlSchema.Type type) {
-    if (property == null) {
-      root().errorHandler.invalidPropertyOfParent(propertyName,
-          parentTypeName());
-      return true;
-    }
-    if (!canAssign(property, type)) {
-      root().errorHandler.invalidPropertyType(propertyName, property.type(),
-          type);
-      return true;
-    }
-    return false; // property is valid
-  }
-
   /** Returns whether we can assign a value of {@code type}
    * to a given {@code property}.
    *
@@ -159,23 +67,122 @@ abstract class ValidatingHandler extends FilterHandler {
    * document. */
   private static class NonRootValidatingHandler extends ValidatingHandler {
     private final RootValidatingHandler root;
-    private final String parentTypeName;
+
+    /** Name of the enclosing object type. */
+    final String parentTypeName;
+
 
     NonRootValidatingHandler(ObjectHandler objectHandler,
-        ValidatingHandler parentHandler,
-        String parentTypeName,
+        RootValidatingHandler root, String parentTypeName,
         SortedMap<String, LookmlSchema.Property> propertyMap) {
       super(objectHandler, propertyMap);
-      this.root = parentHandler.root();
+      this.root = root;
       this.parentTypeName = parentTypeName;
     }
 
-    @Override RootValidatingHandler root() {
-      return root;
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    boolean propertyIsValid(String propertyName,
+        LookmlSchema.@Nullable Property property, LookmlSchema.Type type) {
+      if (property == null) {
+        root.errorHandler.invalidPropertyOfParent(propertyName, parentTypeName);
+        return false;
+      }
+      if (!canAssign(property, type)) {
+        root.errorHandler.invalidPropertyType(propertyName, property.type(),
+            type);
+        return false;
+      }
+      return true; // property is valid
     }
 
-    @Override String parentTypeName() {
-      return parentTypeName;
+    @Override public ObjectHandler number(String propertyName, Number value) {
+      final LookmlSchema.Property property = propertyMap.get(propertyName);
+      if (!propertyIsValid(propertyName, property, LookmlSchema.Type.NUMBER)) {
+        return this;
+      }
+      return super.number(propertyName, value);
+    }
+
+    @Override public ObjectHandler string(String propertyName, String value) {
+      final LookmlSchema.Property property = propertyMap.get(propertyName);
+      if (!propertyIsValid(propertyName, property, LookmlSchema.Type.STRING)) {
+        return this;
+      }
+      return super.string(propertyName, value);
+    }
+
+    @Override public ObjectHandler bool(String propertyName, boolean value) {
+      final LookmlSchema.Property property = propertyMap.get(propertyName);
+      if (property == null) {
+        root.errorHandler.invalidPropertyOfParent(propertyName, parentTypeName);
+        return this;
+      }
+      if (property.type() != LookmlSchema.Type.ENUM) {
+        root.errorHandler.invalidPropertyType(propertyName, property.type(),
+            LookmlSchema.Type.ENUM);
+        return this;
+      }
+      if (!root.probableBooleanTypes.contains(property.typeName())) {
+        root.errorHandler.invalidEnumValue(parentTypeName, propertyName,
+            property.typeName(), value ? "true" : "false");
+      }
+      return super.bool(propertyName, value);
+    }
+
+    @Override public ObjectHandler code(String propertyName, String value) {
+      final LookmlSchema.Property property = propertyMap.get(propertyName);
+      if (!propertyIsValid(propertyName, property, LookmlSchema.Type.CODE)) {
+        return this;
+      }
+      return super.code(propertyName, value);
+    }
+
+    @Override public ObjectHandler identifier(String propertyName,
+        String value) {
+      final LookmlSchema.Property property = propertyMap.get(propertyName);
+      if (property == null) {
+        root.errorHandler.invalidPropertyOfParent(propertyName,
+            parentTypeName);
+        return this;
+      }
+      final LookmlSchema.Type propertyType = property.type();
+      if (propertyType != LookmlSchema.Type.REF
+          && propertyType != LookmlSchema.Type.ENUM) {
+        root.errorHandler.invalidPropertyType(propertyName, propertyType,
+            LookmlSchema.Type.REF);
+        return this;
+      }
+      if (propertyType == LookmlSchema.Type.ENUM) {
+        LookmlSchema.EnumType enumType =
+            requireNonNull(root.schema.enumTypes().get(property.typeName()));
+        if (!enumType.allowedValues().contains(value)) {
+          root.errorHandler.invalidEnumValue(parentTypeName, propertyName,
+              property.typeName(), value);
+          return this;
+        }
+      }
+      return super.identifier(propertyName, value);
+    }
+
+    @Override public ObjectHandler objOpen(String propertyName) {
+      final LookmlSchema.Property property = propertyMap.get(propertyName);
+      if (!propertyIsValid(propertyName, property, LookmlSchema.Type.OBJECT)) {
+        return LaxHandlers.nullObjectHandler();
+      }
+      return super.objOpen(propertyName);
+    }
+
+    @Override public ObjectHandler objOpen(String propertyName, String name) {
+      final LookmlSchema.Property property = propertyMap.get(propertyName);
+      if (!propertyIsValid(propertyName, property,
+          LookmlSchema.Type.NAMED_OBJECT)) {
+        return LaxHandlers.nullObjectHandler();
+      }
+      final ObjectHandler objectHandler = consumer.objOpen(propertyName, name);
+      final LookmlSchema.ObjectType objectType =
+          root.schema.objectTypes().get(propertyName);
+      return new NonRootValidatingHandler(objectHandler, root, propertyName,
+          objectType.properties());
     }
   }
 
@@ -184,16 +191,25 @@ abstract class ValidatingHandler extends FilterHandler {
   private static class RootValidatingHandler extends ValidatingHandler {
     private final LookmlSchema schema;
     private final ErrorHandler errorHandler;
+    /** Set of enum type names that look like boolean (have allowable values
+     * yes and no or true and false). */
+    final Set<String> probableBooleanTypes;
 
     RootValidatingHandler(ObjectHandler consumer, LookmlSchema schema,
         ErrorHandler errorHandler) {
       super(consumer, schema.rootProperties());
       this.schema = requireNonNull(schema, "schema");
       this.errorHandler = requireNonNull(errorHandler, "errorHandler");
+      this.probableBooleanTypes =
+          schema.enumTypes().entrySet().stream()
+              .filter(e -> isBooleanValueSet(e.getValue().allowedValues()))
+              .map(Map.Entry::getKey)
+              .collect(ImmutableSet.toImmutableSet());
     }
 
-    @Override RootValidatingHandler root() {
-      return this;
+    private static boolean isBooleanValueSet(Set<String> valueSet) {
+      return valueSet.contains("true") && valueSet.contains("false")
+          || valueSet.contains("yes") && valueSet.contains("no");
     }
 
     @Override public ObjectHandler number(String propertyName, Number value) {
@@ -237,6 +253,19 @@ abstract class ValidatingHandler extends FilterHandler {
         errorHandler.invalidRootProperty(propertyName);
       }
       return LaxHandlers.nullObjectHandler();
+    }
+
+    @Override public ObjectHandler objOpen(String propertyName, String name) {
+      final LookmlSchema.Property property = propertyMap.get(propertyName);
+      if (property == null) {
+        errorHandler.invalidRootProperty(propertyName);
+        return LaxHandlers.nullObjectHandler();
+      }
+      final ObjectHandler objectHandler = consumer.objOpen(propertyName, name);
+      final LookmlSchema.ObjectType objectType =
+          schema.objectTypes().get(propertyName);
+      return new NonRootValidatingHandler(objectHandler, this, propertyName,
+          objectType.properties());
     }
   }
 }
