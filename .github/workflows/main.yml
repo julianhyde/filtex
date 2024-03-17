@@ -37,7 +37,7 @@ jobs:
           - java-version: "8"
             checkstyle-version: "9.3"
             graalvm-version: "22.0.0.2"
-            guava-version: "19.0"
+            guava-version: "21.0"
             javadoc: true
           - java-version: "11"
             graalvm-version: "22.0.0.2"
