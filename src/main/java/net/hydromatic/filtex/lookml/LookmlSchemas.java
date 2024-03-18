@@ -19,6 +19,7 @@ package net.hydromatic.filtex.lookml;
 import net.hydromatic.filtex.util.PairList;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
@@ -42,9 +43,9 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -52,6 +53,10 @@ import static java.util.Objects.requireNonNull;
 
 /** Utilities for {@link LookmlSchema}. */
 public class LookmlSchemas {
+  /** Cached schema schema. */
+  private static final Supplier<LookmlSchema> SCHEMA_SCHEMA_SUPPLIER =
+      Suppliers.memoize(LookmlSchemas::schemaSchema_);
+
   private LookmlSchemas() {}
 
   /** Creates a SchemaBuilder. */
@@ -60,12 +65,41 @@ public class LookmlSchemas {
   }
 
   /** Loads a schema from a file in Schema LookML format. */
-  public static LookmlSchema load(URL url) {
-    // Read the contents of URL into a string
-    final char[] buf = new char[2048];
-    final StringBuilder sb = new StringBuilder();
+  public static LookmlSchema load(URL url, @Nullable LookmlSchema validate) {
+    final String s = urlContents(url);
+
+    // Parse the string into an AST
+    final List<PairList<String, Value>> list = new ArrayList<>();
+    final List<String> errorList;
+    ObjectHandler handler = LaxHandlers.build(list::add);
+    if (validate != null) {
+      errorList = new ArrayList<>();
+      handler =
+          LaxHandlers.validator(handler, validate,
+              LaxHandlers.errorLogger(errorList::add));
+    } else {
+      errorList = ImmutableList.of();
+    }
+    LaxParser.parse(handler, ImmutableList.of(), s);
+    handler.close();
+    if (!errorList.isEmpty()) {
+      throw new IllegalArgumentException("invalid: " + errorList);
+    }
+
+    final SchemaBuilder b = schemaBuilder();
+    new AstWalker(b).accept(list.get(0));
+    return b.build();
+  }
+
+  /** Returns the contents of a URL.
+   *
+   * <p>We can obsolete this method when we have a way to invoke the parser
+   * on multiple sources (strings, files, URLs). */
+  public static String urlContents(URL url) {
     try (InputStream stream = url.openStream();
          Reader r = new InputStreamReader(stream, Charsets.ISO_8859_1)) {
+      final char[] buf = new char[2048];
+      final StringBuilder sb = new StringBuilder();
       for (;;) {
         int c = r.read(buf);
         if (c < 0) {
@@ -73,25 +107,56 @@ public class LookmlSchemas {
         }
         sb.append(buf, 0, c);
       }
+      return sb.toString();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    String s = sb.toString();
-
-    // Parse the string into an AST
-    List<PairList<String, Value>> list = new ArrayList<>();
-    final ObjectHandler handler = LaxHandlers.build(list::add);
-    LaxParser.parse(handler, ImmutableList.of(), s);
-    handler.close();
-
-    final SchemaBuilder b = schemaBuilder();
-    new AstWalker(b).accept(list.get(0));
-    return b.build();
   }
 
   /** Returns whether two {@link LookmlSchema} instances are equal. */
   public static boolean equal(LookmlSchema schema1, LookmlSchema schema2) {
-    return Comparer.INSTANCE.equalSchema(schema1, schema2);
+    return new Comparer(difference -> { }).equalSchema(schema1, schema2);
+  }
+
+  /** Returns a list of differences between two {@link LookmlSchema}
+   * instances. The list is empty if and only if they are equal. */
+  public static List<String> compare(LookmlSchema schema1,
+      LookmlSchema schema2) {
+    final ImmutableList.Builder<String> differences = ImmutableList.builder();
+    new Comparer(differences::add).equalSchema(schema1, schema2);
+    return differences.build();
+  }
+
+  /** Creates a schema for "Schema LookML". It can be used to validate any
+   * schema, including itself.
+   *
+   * <p>It is equivalent to "/lookml/lkml-schema.lkml". */
+  public static LookmlSchema schemaSchema() {
+    return SCHEMA_SCHEMA_SUPPLIER.get();
+  }
+
+  static LookmlSchema schemaSchema_() {
+    return schemaBuilder()
+        .setName("schema")
+        .addEnum("type", "number", "string", "enum", "code", "object",
+            "named_object", "ref", "ref_list", "string_list",
+            "ref_string_map", "ref_string")
+        .addObjectType("enum_type", b ->
+            b.addStringListProperty("values")
+                .build())
+        .addObjectType("object_type", b ->
+            b.addNamedObjectProperty("property")
+                .build())
+        .addObjectType("property", b ->
+            b.addRefProperty("type")
+                .build())
+        .addObjectType("schema", b ->
+            b.addNamedObjectProperty("enum_type")
+                .addNamedObjectProperty("object_type")
+                .addRefListProperty("root_properties")
+                .build())
+        .addNamedObjectProperty("schema")
+        .build();
   }
 
   /** Builder for a {@link LookmlSchema}. */
@@ -369,6 +434,10 @@ public class LookmlSchemas {
       this.propertyMap = ImmutableSortedMap.copyOf(propertyMap);
     }
 
+    @Override public String toString() {
+      return propertyMap.values().toString();
+    }
+
     @Override public SortedMap<String, LookmlSchema.Property> properties() {
       return propertyMap;
     }
@@ -401,6 +470,10 @@ public class LookmlSchemas {
       this.type = requireNonNull(type);
       this.typeName = requireNonNull(typeName);
       checkArgument(type != LookmlSchema.Type.REF_STRING);
+    }
+
+    @Override public String toString() {
+      return "property '" + name + "'";
     }
 
     @Override public String name() {
@@ -523,7 +596,6 @@ public class LookmlSchemas {
 
   /** Walks an AST and calls SchemaBuilder. */
   static class AstWalker {
-    private int phase;
     final SchemaBuilder b;
 
     AstWalker(SchemaBuilder b) {
@@ -534,9 +606,7 @@ public class LookmlSchemas {
       pairList.forEach((property, value) -> {
         switch (property) {
         case "schema":
-          for (phase = 0; phase < 2; phase++) {
-            acceptSchema((Values.NamedObjectValue) value);
-          }
+          acceptSchema((Values.NamedObjectValue) value);
           break;
         default:
           throw new AssertionError("unexpected: " + property);
@@ -658,55 +728,96 @@ public class LookmlSchemas {
   /** Compares whether two instances of
    * {@link net.hydromatic.filtex.lookml.LookmlSchema} are equal,
    * and similarly their component enum types, object types, properties. */
-  private enum Comparer {
-    INSTANCE;
+  private static class Comparer {
+    private final Consumer<String> differences;
+
+    Comparer(Consumer<String> differences) {
+      this.differences = requireNonNull(differences);
+    }
+
+    boolean differ(String area, Object left, Object right) {
+      differences.accept(area + " (" + left + " vs " + right + ")");
+      return false;
+    }
 
     /** Returns whether two {@link LookmlSchema} instances are equal. */
     boolean equalSchema(LookmlSchema s1, LookmlSchema s2) {
-      return Objects.equals(s1.name(), s2.name())
-          && equalMap(s1.enumTypes(), s2.enumTypes(), this::equalEnumType)
-          && equalMap(s1.objectTypes(), s2.objectTypes(), this::equalObjectType)
-          && equalMap(s1.rootProperties(), s2.rootProperties(),
-              this::equalProperty);
+      if (!Objects.equals(s1.name(), s2.name())) {
+        return differ("schema name", s1.name(), s2.name());
+      }
+      if (!equalMap("enum type", s1.enumTypes(), s2.enumTypes(),
+          this::equalEnumType)) {
+        return false;
+      }
+      if (!equalMap("object type", s1.objectTypes(), s2.objectTypes(),
+          this::equalObjectType)) {
+        return false;
+      }
+      if (!equalMap("root properties", s1.rootProperties(), s2.rootProperties(),
+          this::equalProperty)) {
+        return false;
+      }
+      return true;
     }
 
     /** Compares two maps: keys by equality, values using a provided
      * comparer. */
-    static <K, V> boolean equalMap(Map<K, V> map1, Map<K, V> map2,
-        BiPredicate<V, V> valueComparer) {
+    <K, V> boolean equalMap(String area, Map<K, V> map1, Map<K, V> map2,
+        CompareFunction<V> valueComparer) {
       if (!Objects.equals(map1.keySet(), map2.keySet())) {
-        return false;
+        return differ(area + " names", map1.keySet(), map2.keySet());
       }
       for (Map.Entry<K, V> entry : map1.entrySet()) {
         final V value1 = entry.getValue();
         final V value2 = map2.get(entry.getKey());
+        final String area2 = area + ", value '" + entry.getKey() + "'";
         if (value2 == null) {
-          return false;
+          return differ(area2, value1, "(missing)");
         }
-        if (!valueComparer.test(value1, value2)) {
-          return false;
+        if (!valueComparer.compare(area2, value1, value2)) {
+          return differ(area2, value1, value2);
         }
       }
       return true;
     }
 
-    boolean equalEnumType(LookmlSchema.EnumType type1,
+    boolean equalEnumType(String area, LookmlSchema.EnumType type1,
         LookmlSchema.EnumType type2) {
-      return Objects.equals(type1.allowedValues(), type2.allowedValues());
+      if (!Objects.equals(type1.allowedValues(), type2.allowedValues())) {
+        return differ(area, type1, type2);
+      }
+      return true;
     }
 
-    boolean equalObjectType(LookmlSchema.ObjectType type1,
+    boolean equalObjectType(String area, LookmlSchema.ObjectType type1,
         LookmlSchema.ObjectType type2) {
-      return equalMap(type1.properties(), type2.properties(),
+      return equalMap(area, type1.properties(), type2.properties(),
           this::equalProperty);
     }
 
-    boolean equalProperty(LookmlSchema.Property property1,
+    boolean equalProperty(String area, LookmlSchema.Property property1,
         LookmlSchema.Property property2) {
-      return Objects.equals(property1.name(), property2.name())
-          && Objects.equals(property1.type(), property2.type())
-          && Objects.equals(property1.typeName(), property2.typeName());
+      if (!Objects.equals(property1.name(), property2.name())) {
+        return differ(area + " name", property1.name(), property2.name());
+      }
+      if (!Objects.equals(property1.type(), property2.type())) {
+        return differ(area + " type", property1.type(), property2.type());
+      }
+      if (!Objects.equals(property1.typeName(), property2.typeName())) {
+        return differ(area + " type name", property1.typeName(),
+            property2.typeName());
+      }
+      return true;
     }
+  }
+
+  /** Function that compares values from left and right and reports
+   * the location of the difference if they are not the same.
+   *
+   * @param <E> Type of values to be compared.
+   */
+  interface CompareFunction<E> {
+    boolean compare(String area, E left, E right);
   }
 }
 

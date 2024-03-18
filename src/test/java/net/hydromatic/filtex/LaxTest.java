@@ -39,6 +39,7 @@ import java.util.function.Consumer;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.anEmptyMap;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.hasToString;
 import static org.hamcrest.Matchers.notNullValue;
@@ -509,12 +510,30 @@ public class LaxTest {
             + " listClose()]"));
   }
 
+  /** Tests that the schema-schema obtained by parsing {@code lkml-schema.lkml}
+   * is equivalent to the one created by the {@link LookmlSchemas#schemaSchema()} method.
+   * Also lets the schema-schema validate itself. */
+  @Test void testCompareSchemaSchema() {
+    final URL url = LaxTest.class.getResource("/lookml/lkml-schema.lkml");
+    final LookmlSchema schema = LookmlSchemas.load(url, null);
+    final LookmlSchema schemaSchema = LookmlSchemas.schemaSchema();
+    assertThat(LookmlSchemas.compare(schema, schemaSchema), empty());
+    assertThat(LookmlSchemas.equal(schema, schemaSchema), is(true));
+
+    // Use the schema to validate itself.
+    final LookmlSchema schema2 = LookmlSchemas.load(url, schema);
+    assertThat(LookmlSchemas.equal(schema, schema2), is(true));
+  }
+
   /** Tests that the core schema obtained by parsing {@code core-schema.lkml}
    * is equivalent to the one created by the {@link #coreSchema()} method. */
   @Test void testCompareCoreSchema() {
     final URL url = LaxTest.class.getResource("/lookml/core-schema.lkml");
-    final LookmlSchema schema = LookmlSchemas.load(url);
-    assertThat(LookmlSchemas.equal(schema, coreSchema()), is(true));
+    final LookmlSchema schema =
+        LookmlSchemas.load(url, LookmlSchemas.schemaSchema());
+    final LookmlSchema coreSchema = coreSchema();
+    assertThat(LookmlSchemas.compare(schema, coreSchema), empty());
+    assertThat(LookmlSchemas.equal(schema, coreSchema), is(true));
   }
 
   /** Contains necessary state for testing the parser and validator. */
