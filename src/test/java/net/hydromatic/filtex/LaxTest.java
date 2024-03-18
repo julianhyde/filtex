@@ -30,6 +30,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -163,6 +164,7 @@ public class LaxTest {
         .addNamedObjectProperty("model", b ->
             b.addNamedObjectProperty("explore")
                 .addNamedObjectProperty("view")
+                .addNumberProperty("fiscal_month_offset")
                 .build())
         .build();
   }
@@ -474,6 +476,14 @@ public class LaxTest {
             + " listOpen(),"
             + " number(2),"
             + " listClose()]"));
+  }
+
+  /** Tests that the core schema obtained by parsing {@code core-schema.lkml}
+   * is equivalent to the one created by the {@link #coreSchema()} method. */
+  @Test void testCompareCoreSchema() {
+    final URL url = LaxTest.class.getResource("/lookml/core-schema.lkml");
+    final LookmlSchema schema = LookmlSchemas.load(url);
+    assertThat(LookmlSchemas.equal(schema, coreSchema()), is(true));
   }
 
   /** Contains necessary state for testing the parser and validator. */

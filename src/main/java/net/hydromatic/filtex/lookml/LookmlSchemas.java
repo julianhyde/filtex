@@ -16,6 +16,10 @@
  */
 package net.hydromatic.filtex.lookml;
 
+import net.hydromatic.filtex.util.PairList;
+
+import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
@@ -23,13 +27,22 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -44,6 +57,41 @@ public class LookmlSchemas {
   /** Creates a SchemaBuilder. */
   public static SchemaBuilder schemaBuilder() {
     return new SchemaBuilderImpl();
+  }
+
+  /** Loads a schema from a file in Schema LookML format. */
+  public static LookmlSchema load(URL url) {
+    // Read the contents of URL into a string
+    final char[] buf = new char[2048];
+    final StringBuilder sb = new StringBuilder();
+    try (InputStream stream = url.openStream();
+         Reader r = new InputStreamReader(stream, Charsets.ISO_8859_1)) {
+      for (;;) {
+        int c = r.read(buf);
+        if (c < 0) {
+          break;
+        }
+        sb.append(buf, 0, c);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    String s = sb.toString();
+
+    // Parse the string into an AST
+    List<PairList<String, Value>> list = new ArrayList<>();
+    final ObjectHandler handler = LaxHandlers.build(list::add);
+    LaxParser.parse(handler, ImmutableList.of(), s);
+    handler.close();
+
+    final SchemaBuilder b = schemaBuilder();
+    new AstWalker(b).accept(list.get(0));
+    return b.build();
+  }
+
+  /** Returns whether two {@link LookmlSchema} instances are equal. */
+  public static boolean equal(LookmlSchema schema1, LookmlSchema schema2) {
+    return Comparer.INSTANCE.equalSchema(schema1, schema2);
   }
 
   /** Builder for a {@link LookmlSchema}. */
@@ -470,6 +518,194 @@ public class LookmlSchemas {
       propertyMap.put(propertyName,
           new PropertyImpl(propertyName, type, typeName));
       return this;
+    }
+  }
+
+  /** Walks an AST and calls SchemaBuilder. */
+  static class AstWalker {
+    private int phase;
+    final SchemaBuilder b;
+
+    AstWalker(SchemaBuilder b) {
+      this.b = b;
+    }
+
+    void accept(PairList<String, Value> pairList) {
+      pairList.forEach((property, value) -> {
+        switch (property) {
+        case "schema":
+          for (phase = 0; phase < 2; phase++) {
+            acceptSchema((Values.NamedObjectValue) value);
+          }
+          break;
+        default:
+          throw new AssertionError("unexpected: " + property);
+        }
+      });
+    }
+
+    void acceptSchema(Values.NamedObjectValue objectValue) {
+      b.setName(objectValue.name);
+      objectValue.properties.forEach((property, value) -> {
+        switch (property) {
+        case "root_properties":
+          acceptRootProperties((Values.ListValue) value);
+          break;
+        case "enum_type":
+          acceptEnumType((Values.NamedObjectValue) value);
+          break;
+        case "object_type":
+          final Values.NamedObjectValue objectValue1 =
+              (Values.NamedObjectValue) value;
+          b.addObjectType(objectValue1.name, objectTypeBuilder ->
+              acceptObjectType(objectTypeBuilder, objectValue1));
+          break;
+        }
+      });
+    }
+
+    void acceptRootProperties(Values.ListValue listValue) {
+      for (Value value : listValue.list) {
+        b.addNamedObjectProperty(((Values.IdentifierValue) value).id);
+      }
+    }
+
+    void acceptEnumType(Values.NamedObjectValue objectValue) {
+      final List<String> valueList = new ArrayList<>();
+      objectValue.properties.forEach((property, value) -> {
+        switch (property) {
+        case "values":
+          acceptValues((Values.ListValue) value, valueList);
+          break;
+        default:
+          throw new AssertionError("unexpected: " + property);
+        }
+      });
+      b.addEnum(objectValue.name, valueList);
+    }
+
+    void acceptValues(Values.ListValue listValue, List<String> valueList) {
+      listValue.list.forEach(value ->
+          valueList.add(((Values.StringValue) value).s));
+    }
+
+    LookmlSchema.ObjectType acceptObjectType(
+        ObjectTypeBuilder objectTypeBuilder,
+        Values.NamedObjectValue objectValue) {
+      objectValue.properties.forEach((property, value) -> {
+        switch (property) {
+        case "property":
+          acceptProperty(objectTypeBuilder, (Values.NamedObjectValue) value);
+          break;
+        default:
+          throw new AssertionError("unexpected: " + property);
+        }
+      });
+      return objectTypeBuilder.build();
+    }
+
+    void acceptProperty(ObjectTypeBuilder objectTypeBuilder,
+        Values.NamedObjectValue objectValue) {
+      final Values.IdentifierValue value =
+          (Values.IdentifierValue) get(objectValue.properties, "type");
+      switch (value.id) {
+      case "code":
+        objectTypeBuilder.addCodeProperty(objectValue.name);
+        break;
+      case "named_object":
+        objectTypeBuilder.addNamedObjectProperty(objectValue.name);
+        break;
+      case "numeric":
+        objectTypeBuilder.addNumberProperty(objectValue.name);
+        break;
+      case "object":
+        objectTypeBuilder.addObjectProperty(objectValue.name);
+        break;
+      case "ref":
+        objectTypeBuilder.addRefProperty(objectValue.name);
+        break;
+      case "ref_list":
+        objectTypeBuilder.addRefListProperty(objectValue.name);
+        break;
+      case "ref_string_map":
+        objectTypeBuilder.addRefStringMapProperty(objectValue.name);
+        break;
+      case "string":
+        objectTypeBuilder.addStringProperty(objectValue.name);
+        break;
+      case "string_list":
+        objectTypeBuilder.addStringListProperty(objectValue.name);
+        break;
+      default:
+        if (b.isEnumType(value.id)) {
+          objectTypeBuilder.addEnumProperty(objectValue.name, value.id);
+        } else {
+          throw new AssertionError("unexpected: " + value.id);
+        }
+      }
+    }
+
+    <K, V> V get(PairList<K, V> pairList, K seek) {
+      for (int i = 0; i < pairList.size(); i++) {
+        if (pairList.left(i).equals(seek)) {
+          return pairList.right(i);
+        }
+      }
+      throw new IllegalArgumentException("not found: " + seek);
+    }
+  }
+
+  /** Compares whether two instances of
+   * {@link net.hydromatic.filtex.lookml.LookmlSchema} are equal,
+   * and similarly their component enum types, object types, properties. */
+  private enum Comparer {
+    INSTANCE;
+
+    /** Returns whether two {@link LookmlSchema} instances are equal. */
+    boolean equalSchema(LookmlSchema s1, LookmlSchema s2) {
+      return Objects.equals(s1.name(), s2.name())
+          && equalMap(s1.enumTypes(), s2.enumTypes(), this::equalEnumType)
+          && equalMap(s1.objectTypes(), s2.objectTypes(), this::equalObjectType)
+          && equalMap(s1.rootProperties(), s2.rootProperties(),
+              this::equalProperty);
+    }
+
+    /** Compares two maps: keys by equality, values using a provided
+     * comparer. */
+    static <K, V> boolean equalMap(Map<K, V> map1, Map<K, V> map2,
+        BiPredicate<V, V> valueComparer) {
+      if (!Objects.equals(map1.keySet(), map2.keySet())) {
+        return false;
+      }
+      for (Map.Entry<K, V> entry : map1.entrySet()) {
+        final V value1 = entry.getValue();
+        final V value2 = map2.get(entry.getKey());
+        if (value2 == null) {
+          return false;
+        }
+        if (!valueComparer.test(value1, value2)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    boolean equalEnumType(LookmlSchema.EnumType type1,
+        LookmlSchema.EnumType type2) {
+      return Objects.equals(type1.allowedValues(), type2.allowedValues());
+    }
+
+    boolean equalObjectType(LookmlSchema.ObjectType type1,
+        LookmlSchema.ObjectType type2) {
+      return equalMap(type1.properties(), type2.properties(),
+          this::equalProperty);
+    }
+
+    boolean equalProperty(LookmlSchema.Property property1,
+        LookmlSchema.Property property2) {
+      return Objects.equals(property1.name(), property2.name())
+          && Objects.equals(property1.type(), property2.type())
+          && Objects.equals(property1.typeName(), property2.typeName());
     }
   }
 }

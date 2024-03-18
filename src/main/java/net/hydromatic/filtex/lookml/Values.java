@@ -65,7 +65,7 @@ class Values {
 
   /** Value of a property or list element whose value is an identifier. */
   static class IdentifierValue extends Value {
-    private final String id;
+    final String id;
 
     IdentifierValue(String id) {
       this.id = id;
@@ -104,7 +104,7 @@ class Values {
 
   /** Value of a property or list element whose value is a string. */
   static class StringValue extends Value {
-    private final String s;
+    final String s;
 
     StringValue(String s) {
       this.s = s;
@@ -146,7 +146,7 @@ class Values {
 
   /** Value of a property or list element whose value is a list. */
   static class ListValue extends Value {
-    private final List<Value> list;
+    final List<Value> list;
 
     ListValue(List<Value> list) {
       this.list = list;

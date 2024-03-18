@@ -69,6 +69,12 @@ public class LaxHandlers {
     return NullObjectHandler.INSTANCE;
   }
 
+  /** Creates an ObjectHandler that converts events into a document. */
+  public static ObjectHandler build(
+      Consumer<PairList<String, Value>> consumer) {
+    return new ObjectBuilder(consumer);
+  }
+
   /** Builder for the root element. Ordinary builders that have
    * a parent simply write to that parent, but this builder writes to a
    * {@link LookmlWriter}. */
