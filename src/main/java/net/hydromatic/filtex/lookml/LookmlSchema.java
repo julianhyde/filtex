@@ -27,6 +27,9 @@ import java.util.SortedSet;
  * for the current version of LookML, and that same instance is used whenever
  * a validating parser is required. */
 public interface LookmlSchema {
+  /** Returns the name of this schema. */
+  String name();
+
   /** Returns properties that may occur at the root of a model.
    *
    * <p>In the standard schema, this is just "[model]".
@@ -56,7 +59,7 @@ public interface LookmlSchema {
     /** Numeric value. E.g. '{@code precision: 10}'. */
     NUMBER,
 
-    /** Numeric value. E.g. '{@code value_format: "$#.00;($#.00)"}'. */
+    /** String value. E.g. '{@code value_format: "$#.00;($#.00)"}'. */
     STRING,
 
     /** Enumerated value. E.g. '{@code type: left_outer}',

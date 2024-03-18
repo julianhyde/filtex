@@ -21,6 +21,8 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,13 +41,19 @@ import static java.util.Objects.requireNonNull;
 public class LookmlSchemas {
   private LookmlSchemas() {}
 
+  /** Creates a SchemaBuilder. */
   public static SchemaBuilder schemaBuilder() {
     return new SchemaBuilderImpl();
   }
 
   /** Builder for a {@link LookmlSchema}. */
   public interface SchemaBuilder {
+    /** Builds a {@code LookmlSchema} object from the contents of this
+     * builder. */
     LookmlSchema build();
+
+    /** Sets the name of the schema. */
+    SchemaBuilder setName(String name);
 
     /** Defines a {@link LookmlSchema.EnumType}
      * using an array of allowed values
@@ -71,8 +79,14 @@ public class LookmlSchemas {
     SchemaBuilder addObjectType(String typeName,
         Function<ObjectTypeBuilder, LookmlSchema.ObjectType> action);
 
+    /** Returns whether {@code typeName} is an enum type. */
+    boolean isEnumType(String typeName);
+
     /** Looks up an enum type; throws if not found. */
     LookmlSchema.EnumType getEnumType(String typeName);
+
+    /** Returns whether {@code typeName} is an object type. */
+    boolean isObjectType(String typeName);
 
     /** Looks up an object type; throws if not found. */
     LookmlSchema.ObjectType getObjectType(String typeName);
@@ -152,6 +166,7 @@ public class LookmlSchemas {
   /** Implementation of
    * {@link net.hydromatic.filtex.lookml.LookmlSchemas.SchemaBuilder}. */
   private static class SchemaBuilderImpl implements SchemaBuilder {
+    @Nullable String name;
     final Map<String, PropertyImpl> rootPropertyMap = new LinkedHashMap<>();
     final Map<String, EnumTypeImpl> enumTypes = new LinkedHashMap<>();
     final Map<String, ObjectTypeImpl> objectTypes = new LinkedHashMap<>();
@@ -160,8 +175,25 @@ public class LookmlSchemas {
       // Deduce the set of 'code' properties
       final Set<String> codePropertyNames = new TreeSet<>();
       forEachProperty(property -> {
-        if (property.type() == LookmlSchema.Type.CODE) {
+        switch (property.type()) {
+        case CODE:
           codePropertyNames.add(property.name());
+          break;
+        case NAMED_OBJECT:
+        case OBJECT:
+          if (!objectTypes.containsKey(property.name())) {
+            throw new IllegalArgumentException("property '" + property.name()
+                + "' references unknown object type '" + property.name()
+                + "'");
+          }
+          break;
+        case ENUM:
+          if (!enumTypes.containsKey(property.typeName())) {
+            throw new IllegalArgumentException("property '" + property.name()
+                + "' references unknown enum type '" + property.typeName()
+                + "'");
+          }
+          break;
         }
       });
       // Make sure no 'code' properties are used for non-code
@@ -172,13 +204,18 @@ public class LookmlSchemas {
               + "' has both code and non-code uses");
         }
       });
-      return new SchemaImpl(rootPropertyMap, objectTypes, enumTypes,
-          codePropertyNames);
+      return new SchemaImpl(requireNonNull(name, "name"), rootPropertyMap,
+          objectTypes, enumTypes, codePropertyNames);
     }
 
     private void forEachProperty(Consumer<LookmlSchema.Property> consumer) {
       objectTypes.values().forEach(objectType ->
           objectType.propertyMap.values().forEach(consumer));
+    }
+
+    @Override public SchemaBuilder setName(String name) {
+      this.name = name;
+      return this;
     }
 
     @Override public SchemaBuilder addEnum(String name,
@@ -195,8 +232,16 @@ public class LookmlSchemas {
       return this;
     }
 
+    @Override public boolean isEnumType(String typeName) {
+      return enumTypes.containsKey(typeName);
+    }
+
     @Override public LookmlSchema.EnumType getEnumType(String typeName) {
       return requireNonNull(enumTypes.get(typeName), typeName);
+    }
+
+    @Override public boolean isObjectType(String typeName) {
+      return objectTypes.containsKey(typeName);
     }
 
     @Override public LookmlSchema.ObjectType getObjectType(String typeName) {
@@ -228,19 +273,26 @@ public class LookmlSchemas {
 
   /** Implementation of {@link LookmlSchema}. */
   private static class SchemaImpl implements LookmlSchema {
+    final String name;
     final Map<String, Property> rootPropertyMap;
     final Map<String, ObjectType> objectTypes;
     final Map<String, EnumType> enumTypes;
     final SortedSet<String> codePropertyNames;
 
-    SchemaImpl(Map<String, PropertyImpl> rootPropertyMap,
+    SchemaImpl(String name,
+        Map<String, PropertyImpl> rootPropertyMap,
         Map<String, ObjectTypeImpl> objectTypes,
         Map<String, EnumTypeImpl> enumTypes,
         Iterable<String> codePropertyNames) {
+      this.name = name;
       this.rootPropertyMap = ImmutableMap.copyOf(rootPropertyMap);
       this.objectTypes = ImmutableMap.copyOf(objectTypes);
       this.enumTypes = ImmutableMap.copyOf(enumTypes);
       this.codePropertyNames = ImmutableSortedSet.copyOf(codePropertyNames);
+    }
+
+    public String name() {
+      return name;
     }
 
     @Override public Map<String, Property> rootProperties() {
@@ -404,11 +456,11 @@ public class LookmlSchemas {
         LookmlSchema.Type type, String typeName) {
       switch (type) {
       case ENUM:
-        requireNonNull(schemaBuilder.enumTypes.get(typeName), typeName);
-        break;
       case OBJECT:
       case NAMED_OBJECT:
-        requireNonNull(schemaBuilder.objectTypes.get(propertyName), typeName);
+        if (typeName.isEmpty()) {
+          throw new IllegalArgumentException(typeName);
+        }
         break;
       default:
         if (!typeName.isEmpty()) {

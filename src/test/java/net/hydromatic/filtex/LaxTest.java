@@ -112,6 +112,7 @@ public class LaxTest {
   /** Creates a schema that is a subset of standard LookML. */
   static LookmlSchema coreSchema() {
     return LookmlSchemas.schemaBuilder()
+        .setName("core")
         .addEnum("boolean", "false", "true")
         .addEnum("join_type", "left_outer", "full_outer", "inner", "cross")
         .addEnum("relationship_type", "many_to_one", "many_to_many",
@@ -300,8 +301,10 @@ public class LaxTest {
   @Test void testSchemaBuilder() {
     LookmlSchema s =
         LookmlSchemas.schemaBuilder()
+            .setName("simple")
             .addEnum("boolean", "true", "false")
             .build();
+    assertThat(s.name(), is("simple"));
     assertThat(s.objectTypes(), anEmptyMap());
     assertThat(s.enumTypes(), aMapWithSize(1));
     assertThat(s.enumTypes().get("boolean").allowedValues(),
@@ -312,6 +315,7 @@ public class LaxTest {
   @Test void testSchemaBuilder2() {
     LookmlSchema s =
         LookmlSchemas.schemaBuilder()
+            .setName("example")
             .addEnum("boolean", "true", "false")
             .addEnum("join_type", "inner", "cross_join", "left_outer")
             .addNamedObjectProperty("empty_object",
@@ -323,6 +327,7 @@ public class LaxTest {
                     .addObjectProperty("empty_object")
                     .build())
             .build();
+    assertThat(s.name(), is("example"));
     assertThat(s.enumTypes(), aMapWithSize(2));
     assertThat(s.enumTypes().get("boolean").allowedValues(),
         hasToString("[false, true]"));
