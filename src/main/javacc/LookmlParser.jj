@@ -134,22 +134,22 @@ void objectElement(ObjectHandler h) : {}
   property(h)
 }
 
-/** Parses the body of a list. */
+/** Parses the body of a list.
+    It is a sequence of values, separated by commas.
+    Any number of comments can occur before or after values. */
 void listBody(ListHandler h) : {}
 {
+  ( commentInList(h) )*
   [
-    listElement(h)
-    ( <COMMA> listElement(h) )*
+    value(h)
+    ( commentInList(h) )*
+    (
+      <COMMA>
+      ( commentInList(h) )*
+      value(h)
+      ( commentInList(h) )*
+    )*
   ]
-}
-
-/** Parses an element (value or comment) in a list. */
-void listElement(ListHandler h) : {}
-{
-  LOOKAHEAD(1)
-  commentInList(h)
-|
-  value(h)
 }
 
 /** Parses a property, e.g. 'p: true', 'q: 1', 'r: []', 's: name {}',

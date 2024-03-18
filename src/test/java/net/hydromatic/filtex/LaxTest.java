@@ -297,6 +297,37 @@ public class LaxTest {
             + " code(sql,  multi\n"
             + "     line),"
             + " objClose()]"));
+    assertParse("model: m {\n"
+            + "  my_list: [\n"
+            + "    # before element 0\n"
+            + "    0,\n"
+            + "    # between elements 0 and 1\n"
+            + "    # another\n"
+            + "    1,\n"
+            + "    2\n"
+            + "    # after element but before comma\n"
+            + "    ,\n"
+            + "    # after comma\n"
+            + "    2\n"
+            + "    # after last element\n"
+            + "  ]\n"
+            + "}",
+        hasToString("["
+            + "objOpen(model, m),"
+            + " listOpen(my_list),"
+            + " comment(# before element 0),"
+            + " number(0),"
+            + " comment(# between elements 0 and 1),"
+            + " comment(# another),"
+            + " number(1),"
+            + " number(2),"
+            + " comment(# after element but before comma),"
+            + " comment(# after comma),"
+            + " number(2),"
+            + " comment(# after last element),"
+            + " listClose(),"
+            + " objClose()"
+            + "]"));
   }
 
   /** Tests building a simple schema with one enum type. */
