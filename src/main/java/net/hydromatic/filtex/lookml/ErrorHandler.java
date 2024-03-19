@@ -45,6 +45,13 @@ public interface ErrorHandler {
   /** Called when an element in a list does not match the list type. */
   void invalidListElement(String propertyName,
       LookmlSchema.Type actualElementType, LookmlSchema.Type listType);
+
+  /** Called when an object has more than one occurrence of a property. */
+  void duplicateProperty(String propertyName);
+
+  /** Called when an object has more than one occurrence of a named-object
+   * property with the same name. */
+  void duplicateNamedProperty(String propertyName, String name);
 }
 
 // End ErrorHandler.java

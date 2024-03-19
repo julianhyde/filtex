@@ -510,6 +510,72 @@ public class LaxTest {
             + " listClose()]"));
   }
 
+  /** Validates a LookML document that contains duplicate elements. */
+  @Test void testValidateDuplicates() {
+    final LookmlSchema schema = coreSchema();
+    final ParseFixture f0 = ParseFixture.of().withSchema(schema);
+
+    // Valid - no duplicates
+    final String s = "model: m {\n"
+        + "  explore: e1 {}\n"
+        + "  explore: e2 {}\n"
+        + "}";
+    ParseFixture f = f0.parse(s);
+    assertThat(f.errorList, empty());
+
+    // Invalid - duplicate explore e1
+    final String s2 = "model: m {\n"
+        + "  explore: e1 {}\n"
+        + "  explore: e2 {}\n"
+        + "  explore: e1 {}\n"
+        + "}";
+    f = f0.parse(s2);
+    assertThat(f.errorList, hasSize(1));
+    assertThat(f.errorList,
+        hasToString("[duplicateNamedProperty(explore, e1)]"));
+    assertThat(f.discardedEvents(), hasSize(2));
+    assertThat(f.discardedEvents(),
+        hasToString("[objOpen(explore, e1), objClose()]"));
+
+    // Invalid - duplicate properties of type string, list, number, boolean,
+    // enum (dimension.type)
+    final String s3 = "model: m {\n"
+        + "  fiscal_month_offset: 3\n"
+        + "  view: v1 {\n"
+        + "    label: \"label 1\"\n"
+        + "    label: \"label 2\"\n"
+        + "    dimension: d1{\n"
+        + "      drill_fields: []\n"
+        + "      primary_key: true\n"
+        + "      type: date\n"
+        + "      drill_fields: [f1]\n"
+        + "      primary_key: true\n"
+        + "      type: tier\n"
+        + "    }\n"
+        + "  }\n"
+        + "  fiscal_month_offset: 2\n"
+        + "}\n";
+    f = f0.parse(s3);
+    assertThat(f.errorList, hasSize(5));
+    assertThat(f.errorList,
+        hasToString("["
+            + "duplicateProperty(label), "
+            + "duplicateProperty(drill_fields), "
+            + "duplicateProperty(primary_key), "
+            + "duplicateProperty(type), "
+            + "duplicateProperty(fiscal_month_offset)]"));
+    assertThat(f.discardedEvents(), hasSize(7));
+    assertThat(f.discardedEvents(),
+        hasToString("["
+            + "string(label, label 2), "
+            + "listOpen(drill_fields), "
+            + "identifier(f1), "
+            + "listClose(), "
+            + "identifier(primary_key, true), "
+            + "identifier(type, tier), "
+            + "number(fiscal_month_offset, 2)]"));
+  }
+
   /** Tests that the schema-schema obtained by parsing {@code lkml-schema.lkml}
    * is equivalent to the one created by the {@link LookmlSchemas#schemaSchema()} method.
    * Also lets the schema-schema validate itself. */

@@ -60,4 +60,14 @@ class LoggingErrorHandler implements ErrorHandler {
     consumer.accept("invalidListElement(" + propertyName + ", "
         + actualElementType + ", " + listType + ")");
   }
+
+  @Override public void duplicateProperty(String propertyName) {
+    consumer.accept("duplicateProperty(" + propertyName + ")");
+  }
+
+  @Override public void duplicateNamedProperty(String propertyName,
+      String name) {
+    consumer.accept("duplicateNamedProperty(" + propertyName
+        + ", " + name + ")");
+  }
 }

@@ -23,6 +23,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.TreeSet;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -73,6 +74,14 @@ abstract class ValidatingHandler extends FilterHandler {
     /** Name of the enclosing object type. */
     final String parentTypeName;
 
+    /** List of property names seen in this object.
+     *
+     * <p>This isn't very efficient, and would benefit from some tuning.
+     * For small sets (smaller than say 20) I suspect that an array-list
+     * is cheaper than a tree set or hash set. Also, rather than creating
+     * a collection for every element, we could use a single collection in
+     * the root handler, and truncate it each time we leave an object. */
+    final Set<String> names = new TreeSet<>();
 
     NonRootValidatingHandler(ObjectHandler objectHandler,
         RootValidatingHandler root, String parentTypeName,
@@ -102,12 +111,20 @@ abstract class ValidatingHandler extends FilterHandler {
       if (!propertyIsValid(propertyName, property, LookmlSchema.Type.NUMBER)) {
         return this;
       }
+      if (!names.add(propertyName)) {
+        root.errorHandler.duplicateProperty(propertyName);
+        return this;
+      }
       return super.number(propertyName, value);
     }
 
     @Override public ObjectHandler string(String propertyName, String value) {
       final LookmlSchema.Property property = propertyMap.get(propertyName);
       if (!propertyIsValid(propertyName, property, LookmlSchema.Type.STRING)) {
+        return this;
+      }
+      if (!names.add(propertyName)) {
+        root.errorHandler.duplicateProperty(propertyName);
         return this;
       }
       return super.string(propertyName, value);
@@ -128,12 +145,20 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.invalidEnumValue(parentTypeName, propertyName,
             property.typeName(), value ? "true" : "false");
       }
+      if (!names.add(propertyName)) {
+        root.errorHandler.duplicateProperty(propertyName);
+        return this;
+      }
       return super.bool(propertyName, value);
     }
 
     @Override public ObjectHandler code(String propertyName, String value) {
       final LookmlSchema.Property property = propertyMap.get(propertyName);
       if (!propertyIsValid(propertyName, property, LookmlSchema.Type.CODE)) {
+        return this;
+      }
+      if (!names.add(propertyName)) {
+        root.errorHandler.duplicateProperty(propertyName);
         return this;
       }
       return super.code(propertyName, value);
@@ -163,12 +188,20 @@ abstract class ValidatingHandler extends FilterHandler {
           return this;
         }
       }
+      if (!names.add(propertyName)) {
+        root.errorHandler.duplicateProperty(propertyName);
+        return this;
+      }
       return super.identifier(propertyName, value);
     }
 
     @Override public ObjectHandler objOpen(String propertyName) {
       final LookmlSchema.Property property = propertyMap.get(propertyName);
       if (!propertyIsValid(propertyName, property, LookmlSchema.Type.OBJECT)) {
+        return LaxHandlers.nullObjectHandler();
+      }
+      if (!names.add(propertyName)) {
+        root.errorHandler.duplicateProperty(propertyName);
         return LaxHandlers.nullObjectHandler();
       }
       final ObjectHandler objectHandler = consumer.objOpen(propertyName);
@@ -184,6 +217,10 @@ abstract class ValidatingHandler extends FilterHandler {
           LookmlSchema.Type.NAMED_OBJECT)) {
         return LaxHandlers.nullObjectHandler();
       }
+      if (!names.add(propertyName + ':' + name)) {
+        root.errorHandler.duplicateNamedProperty(propertyName, name);
+        return LaxHandlers.nullObjectHandler();
+      }
       final ObjectHandler objectHandler = consumer.objOpen(propertyName, name);
       final LookmlSchema.ObjectType objectType =
           root.schema.objectTypes().get(propertyName);
@@ -196,11 +233,16 @@ abstract class ValidatingHandler extends FilterHandler {
       if (property == null) {
         root.errorHandler.invalidPropertyOfParent(propertyName, parentTypeName);
         return LaxHandlers.nullListHandler();
-      } else if (property.type() != LookmlSchema.Type.REF_LIST
+      }
+      if (property.type() != LookmlSchema.Type.REF_LIST
           && property.type() != LookmlSchema.Type.REF_STRING_MAP
           && property.type() != LookmlSchema.Type.STRING_LIST) {
         root.errorHandler.invalidPropertyType(propertyName, property.type(),
             LookmlSchema.Type.REF_LIST);
+        return LaxHandlers.nullListHandler();
+      }
+      if (!names.add(propertyName)) {
+        root.errorHandler.duplicateProperty(propertyName);
         return LaxHandlers.nullListHandler();
       }
       final ListHandler listHandler = consumer.listOpen(propertyName);
