@@ -16,25 +16,22 @@
  */
 package net.hydromatic.filtex;
 
-import net.hydromatic.filtex.lookml.ErrorHandler;
 import net.hydromatic.filtex.lookml.LaxHandlers;
-import net.hydromatic.filtex.lookml.LaxParser;
 import net.hydromatic.filtex.lookml.LookmlSchema;
 import net.hydromatic.filtex.lookml.LookmlSchemas;
 import net.hydromatic.filtex.lookml.ObjectHandler;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSortedSet;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
+
+import static net.hydromatic.filtex.ParseFixture.minus;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
@@ -46,8 +43,6 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.fail;
-
-import static java.util.Objects.requireNonNull;
 
 /** Tests for the LookML event-based parser. */
 public class LaxTest {
@@ -70,33 +65,17 @@ public class LaxTest {
   }
 
   private static void assertParse(String s, Matcher<List<String>> matcher) {
-    final ParseFixture f = ParseFixture.of().parse(s);
+    final ParseFixture.Parsed f = ParseFixture.of().parse(s);
     assertThat(f.list, matcher);
   }
 
   private static void assertParseThrows(String s, Matcher<Throwable> matcher) {
     try {
-      final ParseFixture f = ParseFixture.of().parse(s);
+      final ParseFixture.Parsed f = ParseFixture.of().parse(s);
       fail("expected error, got " + f.list);
     } catch (RuntimeException e) {
       assertThat(e, matcher);
     }
-  }
-
-  /** Subtracts one list from another in a merge-like manner. */
-  private static <E> List<E> minus(List<E> list0, List<E> list1) {
-    List<E> list = new ArrayList<>();
-    for (int i0 = 0, i1 = 0; i0 < list0.size();) {
-      if (i1 < list1.size() && list0.get(i0).equals(list1.get(i1))) {
-        // This element is in both. Skip it in both.
-        ++i0;
-        ++i1;
-      } else {
-        list.add(list0.get(i0));
-        ++i0;
-      }
-    }
-    return list;
   }
 
   @Test void testMinus() {
@@ -409,18 +388,18 @@ public class LaxTest {
     final LookmlSchema schema = coreSchema();
     final ParseFixture f = ParseFixture.of().withSchema(schema);
     final String s = "dimension: d {x: 1}";
-    ParseFixture f2 = f.parse(s);
+    ParseFixture.Parsed f2 = f.parse(s);
     assertThat(f2.errorList,
         hasToString("[invalidRootProperty(dimension)]"));
     assertThat("all events should be discarded", f2.list, hasSize(0));
 
-    ParseFixture f3 = f.parse("model: {x: 1}");
+    ParseFixture.Parsed f3 = f.parse("model: {x: 1}");
     assertThat(f3.errorList,
         hasToString("[nameRequired(model)]"));
     assertThat("all events should be discarded", f3.list, hasSize(0));
 
     final Consumer<String> fn = m -> {
-      ParseFixture f4 = f.parse("model: " + m);
+      ParseFixture.Parsed f4 = f.parse("model: " + m);
       assertThat(f4.errorList,
           hasToString("[invalidRootProperty(model)]"));
       assertThat("all events should be discarded", f4.list, hasSize(0));
@@ -431,7 +410,7 @@ public class LaxTest {
     fn.accept("inner_join");
     fn.accept("[]");
 
-    ParseFixture f4 = f.parse("model: m {\n"
+    ParseFixture.Parsed f4 = f.parse("model: m {\n"
         + "  dimension: d {}\n"
         + "}");
     assertThat(f4.errorList,
@@ -439,7 +418,7 @@ public class LaxTest {
     assertThat("d events should be discarded", f4.list, hasSize(2));
     assertThat(f4.list, hasToString("[objOpen(model, m), objClose()]"));
 
-    ParseFixture f5 = f.parse("model: m {\n"
+    ParseFixture.Parsed f5 = f.parse("model: m {\n"
         + "  view: v {\n"
         + "    dimension: d {\n"
         + "      sql: VALUES ;;\n"
@@ -520,7 +499,7 @@ public class LaxTest {
         + "  explore: e1 {}\n"
         + "  explore: e2 {}\n"
         + "}";
-    ParseFixture f = f0.parse(s);
+    ParseFixture.Parsed f = f0.parse(s);
     assertThat(f.errorList, empty());
 
     // Invalid - duplicate explore e1
@@ -602,63 +581,6 @@ public class LaxTest {
     assertThat(LookmlSchemas.equal(schema, coreSchema), is(true));
   }
 
-  /** Contains necessary state for testing the parser and validator. */
-  static class ParseFixture {
-    private final List<String> list;
-    private final List<String> errorList;
-    private final @Nullable LookmlSchema schema;
-    private final String s;
-    private final Set<String> codePropertyNames;
-
-    ParseFixture(List<String> list, List<String> errorList,
-        @Nullable LookmlSchema schema, String s,
-        Set<String> codePropertyNames) {
-      this.list = list;
-      this.errorList = errorList;
-      this.schema = schema;
-      this.s = s;
-      this.codePropertyNames = codePropertyNames;
-    }
-
-    static ParseFixture of() {
-      final List<String> list = new ArrayList<>();
-      final List<String> errorList = new ArrayList<>();
-      return new ParseFixture(list, errorList, null, "",
-          ImmutableSortedSet.of("sql"));
-    }
-
-    ParseFixture withSchema(LookmlSchema schema) {
-      return new ParseFixture(list, errorList, requireNonNull(schema), s,
-          schema.codePropertyNames());
-    }
-
-    /** Assigns the current LookML string and parses;
-     * validates if {@link #schema} is not null. */
-    ParseFixture parse(String s) {
-      list.clear();
-      errorList.clear();
-      final ObjectHandler logger = LaxHandlers.logger(list::add);
-      if (schema != null) {
-        final ErrorHandler errorHandler =
-            LaxHandlers.errorLogger(errorList::add);
-        final ObjectHandler validator =
-            LaxHandlers.validator(logger, schema, errorHandler);
-        LaxParser.parse(validator, codePropertyNames, s);
-      } else {
-        LaxParser.parse(logger, codePropertyNames, s);
-      }
-      return new ParseFixture(list, errorList, schema, s, codePropertyNames);
-    }
-
-    /** Returns a list of events that are emitted without validation
-     * but omitted with validation. */
-    List<String> discardedEvents() {
-      final List<String> list2 = new ArrayList<>();
-      final ObjectHandler logger = LaxHandlers.logger(list2::add);
-      LaxParser.parse(logger, codePropertyNames, s);
-      return minus(list2, list);
-    }
-  }
 }
 
 // End LaxTest.java
