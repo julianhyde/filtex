@@ -75,6 +75,13 @@ public class LaxHandlers {
     return new ObjectBuilder(consumer);
   }
 
+  /** Creates an ObjectHandler that converts events into a document. */
+  public static ObjectHandler build2(LookmlSchema schema,
+      ScopedObjectHandler.PolyBuilder polyBuilder,
+      Consumer<Object> consumer) {
+    return ScopedObjectHandler.create(schema, polyBuilder, consumer);
+  }
+
   /** Builder for the root element. Ordinary builders that have
    * a parent simply write to that parent, but this builder writes to a
    * {@link LookmlWriter}. */

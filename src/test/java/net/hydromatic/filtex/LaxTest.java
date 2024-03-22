@@ -580,6 +580,35 @@ public class LaxTest {
     assertThat(LookmlSchemas.equal(schema, coreSchema), is(true));
   }
 
+  /** Builds a model. */
+  @Test void testBuild() {
+    final ParseFixture f0 = ParseFixture.of().withSchema(coreSchema());
+    ParseFixture.Parsed f1 = f0.parse("model: m {\n"
+        + "  view: v1 {}\n"
+        + "  view: v2 {}\n"
+        + "  explore: e {\n"
+        + "    join: v2 {}"
+        + "  }\n"
+        + "}");
+    assertThat(f1.errorList, empty());
+    ParseFixture.Validated f2 = f1.validate();
+    assertThat(f2.list, empty());
+    assertThat(f2.model, notNullValue());
+  }
+
+  /** Validates a model. */
+  @Test void testValidate() {
+    final ParseFixture f0 = ParseFixture.of().withSchema(coreSchema());
+    ParseFixture.Parsed f1 = f0.parse("model: m {\n"
+        + "  view: v1 {}\n"
+        + "  explore: e {\n"
+        + "    view_name: v2"
+        + "  }\n"
+        + "}");
+    assertThat(f1.errorList, empty());
+    ParseFixture.Validated f2 = f1.validate();
+    assertThat(f2.list, empty());
+  }
 }
 
 // End LaxTest.java

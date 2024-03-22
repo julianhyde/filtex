@@ -16,18 +16,15 @@
  */
 package net.hydromatic.filtex.lookml;
 
-/**
- * Wrapper around a LookML value in a property or a list.
- */
-public abstract class Value {
-  /** Writes this value as a list element. */
-  abstract void write(LookmlWriter writer);
+import net.hydromatic.filtex.util.PairList;
 
-  /** Writes this value as a property. */
-  void write(String propertyName, LookmlWriter writer) {
-    writer.label(propertyName);
-    write(writer);
+import java.util.List;
+
+/** Validates a LookML AST. */
+public class Validator {
+  public void validate(AstNodes.Model model,
+      List<String> errorList) {
   }
 }
 
-// End Value.java
+// End Validator.java

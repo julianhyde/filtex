@@ -16,13 +16,16 @@
  */
 package net.hydromatic.filtex;
 
+import net.hydromatic.filtex.lookml.AstNodes;
 import net.hydromatic.filtex.lookml.ErrorHandler;
 import net.hydromatic.filtex.lookml.LaxHandlers;
 import net.hydromatic.filtex.lookml.LaxParser;
 import net.hydromatic.filtex.lookml.LookmlSchema;
 import net.hydromatic.filtex.lookml.ObjectHandler;
+import net.hydromatic.filtex.lookml.Validator;
 
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Iterables;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -30,7 +33,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import static java.util.Objects.requireNonNull;
+import static org.hamcrest.Matchers.empty;
 
 /**
  * Contains necessary state for testing the parser and validator.
@@ -89,6 +96,8 @@ class ParseFixture {
     return list;
   }
 
+  /** The result of the phase that parses a LookML string and runs it through
+   * the schema validator. */
   static class Parsed {
     final ParseFixture parseFixture;
     final List<String> list;
@@ -110,6 +119,47 @@ class ParseFixture {
       final ObjectHandler logger = LaxHandlers.logger(list2::add);
       LaxParser.parse(logger, parseFixture.codePropertyNames, s);
       return minus(list2, list);
+    }
+
+    Validated validate() {
+      assertThat("can't validate without a schema", parseFixture.schema,
+          notNullValue());
+      final AstNodes.Model model = build();
+      final Validator v = new Validator();
+      final List<String> list = new ArrayList<>();
+      v.validate(model, list);
+      return new Validated(this, model, list);
+    }
+
+    /** Converts the model into an AST. */
+    AstNodes.Model build() {
+      final List<AstNodes.Model> list = new ArrayList<>();
+      final AstNodes.Builder astBuilder =
+          AstNodes.builder(parseFixture.schema);
+      final ObjectHandler builder =
+          LaxHandlers.build2(parseFixture.schema, astBuilder,
+              o -> list.add((AstNodes.Model) o));
+      final List<String> errorList = new ArrayList<>();
+      final ObjectHandler validator =
+          LaxHandlers.validator(builder, parseFixture.schema,
+              LaxHandlers.errorLogger(errorList::add));
+      assertThat(errorList, empty());
+      LaxParser.parse(validator, parseFixture.codePropertyNames, s);
+      builder.close();
+      return Iterables.getOnlyElement(list);
+    }
+  }
+
+  /** The result of the phase that creates an AST (model) and validates it. */
+  static class Validated {
+    final Parsed parsed;
+    final AstNodes.Model model;
+    final List<String> list;
+
+    Validated(Parsed parsed, AstNodes.Model model, List<String> list) {
+      this.parsed = parsed;
+      this.model = model;
+      this.list = list;
     }
   }
 }
