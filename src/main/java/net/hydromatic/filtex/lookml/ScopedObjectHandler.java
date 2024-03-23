@@ -96,7 +96,7 @@ abstract class ScopedObjectHandler extends LaxHandlers.ObjectBuilder {
     }
 
     @Override public void close() {
-      consumer.accept(typeName, type, name, this.properties);
+      consumer.accept(typeName, type, name, null);
     }
   }
 

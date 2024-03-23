@@ -22,6 +22,7 @@ import net.hydromatic.filtex.lookml.LaxHandlers;
 import net.hydromatic.filtex.lookml.LaxParser;
 import net.hydromatic.filtex.lookml.LookmlSchema;
 import net.hydromatic.filtex.lookml.ObjectHandler;
+import net.hydromatic.filtex.lookml.PropertyHandler;
 import net.hydromatic.filtex.lookml.Validator;
 
 import com.google.common.collect.ImmutableSortedSet;
@@ -30,7 +31,9 @@ import com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -133,20 +136,16 @@ class ParseFixture {
 
     /** Converts the model into an AST. */
     AstNodes.Model build() {
-      final List<AstNodes.Model> list = new ArrayList<>();
-      final AstNodes.Builder astBuilder =
-          AstNodes.builder(parseFixture.schema);
-      final ObjectHandler builder =
-          LaxHandlers.build2(parseFixture.schema, astBuilder,
-              o -> list.add((AstNodes.Model) o));
+      final Map<String, Object> list = new LinkedHashMap<>();
+      final PropertyHandler astBuilder =
+          AstNodes.builder(parseFixture.schema, list::put);
       final List<String> errorList = new ArrayList<>();
       final ObjectHandler validator =
-          LaxHandlers.validator(builder, parseFixture.schema,
+          LaxHandlers.validatorNew(astBuilder, parseFixture.schema,
               LaxHandlers.errorLogger(errorList::add));
-      assertThat(errorList, empty());
       LaxParser.parse(validator, parseFixture.codePropertyNames, s);
-      builder.close();
-      return Iterables.getOnlyElement(list);
+      assertThat(errorList, empty());
+      return (AstNodes.Model) Iterables.getOnlyElement(list.values());
     }
   }
 

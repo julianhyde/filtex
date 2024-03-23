@@ -17,6 +17,7 @@
 package net.hydromatic.filtex.lookml;
 
 import com.google.common.collect.ImmutableSet;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Map;
@@ -67,7 +68,7 @@ abstract class NewValidatingHandler implements ObjectHandler {
   }
 
   @Override public void close() {
-
+    consumer.close();
   }
 
   @Override public ObjectHandler comment(String comment) {
@@ -218,10 +219,10 @@ abstract class NewValidatingHandler implements ObjectHandler {
         root.errorHandler.duplicateProperty(propertyName);
         return LaxHandlers.nullObjectHandler();
       }
-      final PropertyHandler propertyHandler = consumer.objOpen(property);
+      final PropertyHandler subConsumer = consumer.objOpen(property);
       final LookmlSchema.ObjectType objectType =
           root.schema.objectTypes().get(propertyName);
-      return new NonRootValidatingHandler(propertyHandler, root, propertyName,
+      return new NonRootValidatingHandler(subConsumer, root, propertyName,
           objectType.properties());
     }
 
@@ -235,10 +236,10 @@ abstract class NewValidatingHandler implements ObjectHandler {
         root.errorHandler.duplicateNamedProperty(propertyName, name);
         return LaxHandlers.nullObjectHandler();
       }
-      final PropertyHandler propertyHandler = consumer.objOpen(property);
+      final PropertyHandler subConsumer = consumer.objOpen(property, name);
       final LookmlSchema.ObjectType objectType =
           root.schema.objectTypes().get(propertyName);
-      return new NonRootValidatingHandler(propertyHandler, root, propertyName,
+      return new NonRootValidatingHandler(subConsumer, root, propertyName,
           objectType.properties());
     }
 
@@ -339,10 +340,10 @@ abstract class NewValidatingHandler implements ObjectHandler {
         errorHandler.invalidRootProperty(propertyName);
         return LaxHandlers.nullObjectHandler();
       }
-      final ObjectHandler objectHandler = consumer.objOpen(propertyName, name);
+      final PropertyHandler subConsumer = consumer.objOpen(property, name);
       final LookmlSchema.ObjectType objectType =
           schema.objectTypes().get(propertyName);
-      return new NonRootValidatingHandler(objectHandler, this, propertyName,
+      return new NonRootValidatingHandler(subConsumer, this, propertyName,
           objectType.properties());
     }
   }

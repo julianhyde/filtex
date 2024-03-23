@@ -60,6 +60,13 @@ public class LaxHandlers {
     return ValidatingHandler.create(schema, consumer, errorHandler);
   }
 
+  /** Creates a handler that validates each event against a
+   * {@link LookmlSchema}. */
+  public static ObjectHandler validatorNew(PropertyHandler consumer,
+      LookmlSchema schema, ErrorHandler errorHandler) {
+    return NewValidatingHandler.create(schema, consumer, errorHandler);
+  }
+
   /** Checks whether the input contains at least one instance of every
    * property. */
 //  public static ObjectHandler completenessChecker(LookmlSchema schema) {

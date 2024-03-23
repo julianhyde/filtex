@@ -16,13 +16,13 @@
  */
 package net.hydromatic.filtex.lookml;
 
-import com.google.common.base.Enums;
 import net.hydromatic.filtex.util.PairList;
 
 import com.google.common.collect.ImmutableMap;
 
+import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -31,47 +31,79 @@ import static java.util.Objects.requireNonNull;
 public class AstNodes {
   private AstNodes() {}
 
-  public static Builder builder(LookmlSchema schema) {
-    return new RootBuilder(schema);
+  public static PropertyHandler builder(LookmlSchema schema,
+      BiConsumer<String, Object> consumer) {
+    return new RootBuilder(schema, consumer);
   }
 
   /** Accepts events indicating completed objects and converts them into a
    * tree of AST nodes. */
-  public static abstract class Builder
-      implements ScopedObjectHandler.ObjectConsumer {
+  public abstract static class Builder implements PropertyHandler {
+    protected PropertyHandler objOpen_(RootBuilder root,
+        PropertyHandler parentPropertyHandler,
+        LookmlSchema.Property property, String name) {
+      final Function<String, NodeBuilder> factory =
+          root.typeBuilders.get(property.name());
+      if (factory == null) {
+        throw new IllegalArgumentException("unknown type " + property.name());
+      }
+      final NodeBuilder subNodeBuilder = factory.apply(name);
+      return new NonRootBuilder(root, parentPropertyHandler, property,
+          subNodeBuilder);
+    }
   }
 
   static class NonRootBuilder extends Builder {
     private final RootBuilder root;
-    private final PairList<String, Object> properties = PairList.of();
-    private final PairList<String, Object> parentProperties;
+    final PropertyHandler parentPropertyHandler;
+    private final LookmlSchema.Property property;
+    final NodeBuilder nodeBuilder;
 
-    NonRootBuilder(RootBuilder root, PairList<String, Object> parentProperties) {
+    NonRootBuilder(RootBuilder root, PropertyHandler parentPropertyHandler,
+        LookmlSchema.Property property, NodeBuilder nodeBuilder) {
       this.root = root;
-      this.parentProperties = parentProperties;
+      this.parentPropertyHandler = parentPropertyHandler;
+      this.property = property;
+      this.nodeBuilder = nodeBuilder;
     }
 
-    @Override public ScopedObjectHandler.ObjectConsumer child() {
-      return new NonRootBuilder(root, properties);
+    @Override public PropertyHandler property(LookmlSchema.Property property,
+        Object value) {
+      nodeBuilder.accept(property.name(), value);
+      return this;
     }
 
-    @Override public void accept(String typeName,
-        LookmlSchema.ObjectType objectType, String name,
-        PairList<String, Object> properties) {
-      Object o = root.build(typeName, objectType, name, properties);
-      parentProperties.add(typeName, o);
+    @Override public ListHandler listOpen(LookmlSchema.Property property) {
+      return new LaxHandlers.ListBuilder(list ->
+          nodeBuilder.accept(property.name(), list));
+    }
+
+    @Override public PropertyHandler objOpen(LookmlSchema.Property property) {
+      return objOpen_(root, this, property, "");
+    }
+
+    @Override public PropertyHandler objOpen(LookmlSchema.Property property,
+        String name) {
+      return objOpen_(root, this, property, name);
+    }
+
+    @Override public void close() {
+      parentPropertyHandler.property(property, nodeBuilder.build());
     }
   }
 
-  static class RootBuilder extends Builder {
-    private final Map<String, Function<String, NodeBuilder<?>>> typeBuilders;
+  protected static class RootBuilder extends Builder {
+    private final Map<String, Function<String, NodeBuilder>> typeBuilders;
     private final LookmlSchema schema;
+    private final BiConsumer<String, Object> consumer;
     private final Map<String, RelationshipType> relationshipTypeMap;
 
-    private RootBuilder(LookmlSchema schema) {
+    private RootBuilder(LookmlSchema schema,
+        BiConsumer<String, Object> consumer) {
       this.schema = schema;
+      this.consumer = consumer;
       this.typeBuilders =
-          ImmutableMap.<String, Function<String, NodeBuilder<?>>>builder()
+          ImmutableMap.<String, Function<String, NodeBuilder>>builder()
               .put("model", ModelBuilder::new)
               .put("explore", ExploreBuilder::new)
               .put("view", ViewBuilder::new)
@@ -89,36 +121,42 @@ public class AstNodes {
       requireNonNull(enumType);
       ImmutableMap.Builder<String, E> map = ImmutableMap.builder();
       enumType.allowedValues().forEach(value ->
-          map.put(value, Enum.valueOf(enumClass, value)));
+          map.put(value,
+              Enum.valueOf(enumClass, value.toUpperCase(Locale.ROOT))));
       return map.build();
     }
 
-    @Override public ScopedObjectHandler.ObjectConsumer child() {
-      return new NonRootBuilder(this, PairList.of());
+    @Override public PropertyHandler property(LookmlSchema.Property property,
+        Object value) {
+      consumer.accept(property.name(),  value);
+      return this;
     }
 
-    protected Object build(String typeName,
-        LookmlSchema.ObjectType objectType,
-        String name, PairList<String, Object> properties) {
-      final Function<String, NodeBuilder<?>> function =
-          typeBuilders.get(typeName);
-      if (function == null) {
-        throw new IllegalArgumentException("unknown type " + typeName);
-      }
-      NodeBuilder<?> b = function.apply(name);
-      properties.forEach(b::accept);
-      return b.build();
+    @Override public ListHandler listOpen(LookmlSchema.Property property) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override public PropertyHandler objOpen(LookmlSchema.Property property) {
+      return objOpen_(this, this, property, "");
+    }
+
+    @Override public PropertyHandler objOpen(LookmlSchema.Property property,
+        String name) {
+      return objOpen_(this, this, property, name);
+    }
+
+    @Override public void close() {
     }
   }
 
   /** Can build a node in the AST. */
-  abstract static class NodeBuilder<T> {
+  abstract static class NodeBuilder {
     abstract void accept(String name, Object value);
-    abstract T build();
+    abstract Object build();
   }
 
   /** Builds a {@link Model}. */
-  static class ModelBuilder extends NodeBuilder<Model> {
+  static class ModelBuilder extends NodeBuilder {
     private final String name;
     int fiscalMonthOffset = 0;
     ImmutableMap.Builder<String, Explore> explores = ImmutableMap.builder();
@@ -170,8 +208,8 @@ public class AstNodes {
   }
 
   /** Builds a {@link View}. */
-  static class ViewBuilder extends NodeBuilder<View> {
-    private final String name;
+  static class ViewBuilder extends NodeBuilder {
+    final String name;
     String from;
     String label;
     String sqlTableName;
@@ -230,7 +268,7 @@ public class AstNodes {
   }
 
   /** Builds an {@link Explore}. */
-  static class ExploreBuilder extends NodeBuilder<Explore> {
+  static class ExploreBuilder extends NodeBuilder {
     final String name;
     String from;
     String viewName;
@@ -286,7 +324,7 @@ public class AstNodes {
   }
 
   /** Builds a {@link Join}. */
-  static class JoinBuilder extends NodeBuilder<Join> {
+  static class JoinBuilder extends NodeBuilder {
     private final String name;
     String from;
     String sqlOn;
@@ -325,7 +363,7 @@ public class AstNodes {
     }
   }
   /** Builds a {@link Dimension}. */
-  static class DimensionBuilder extends NodeBuilder<Dimension> {
+  static class DimensionBuilder extends NodeBuilder {
     private final String name;
     String from;
     String label;
@@ -374,7 +412,7 @@ public class AstNodes {
     }
   }
   /** Builds a {@link Measure}. */
-  static class MeasureBuilder extends NodeBuilder<Measure> {
+  static class MeasureBuilder extends NodeBuilder {
     private final String name;
 
     MeasureBuilder(String name) {
@@ -402,7 +440,10 @@ public class AstNodes {
   }
 
   enum RelationshipType {
-
+    MANY_TO_MANY,
+    MANY_TO_ONE,
+    ONE_TO_ONE,
+    ONE_TO_MANY
   }
 }
 
