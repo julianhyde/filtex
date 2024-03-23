@@ -63,10 +63,6 @@ class Values {
     return new PairValue(ref, identifier);
   }
 
-  static Value wrapped(Object o) {
-    return new WrappedValue(o);
-  }
-
   /** Value of a property or list element whose value is an identifier. */
   static class IdentifierValue extends Value {
     final String id;
@@ -78,16 +74,11 @@ class Values {
     @Override void write(LookmlWriter writer) {
       writer.identifier(id);
     }
-
-    public <E extends Enum<E>> E asEnum(Class<E> enumClass) {
-      //return enumClass.getEnumConstants();
-      throw new AssertionError();
-    }
   }
 
   /** Value of a property or list element whose value is a number. */
   static class NumberValue extends Value {
-    final Number number;
+    private final Number number;
 
     NumberValue(Number number) {
       this.number = number;
@@ -216,23 +207,6 @@ class Values {
       writer.identifier(name);
       writer.buf.append(' ');
       super.write(writer);
-    }
-  }
-
-  /** Value that is in native representation. */
-  static class WrappedValue extends Value {
-    private final Object o;
-
-    WrappedValue(Object o) {
-      this.o = requireNonNull(o);
-    }
-
-    @Override void write(LookmlWriter writer) {
-      throw new UnsupportedOperationException();
-    }
-
-    public <T> T unwrap(Class<T> aClass) {
-      return aClass.cast(o);
     }
   }
 }

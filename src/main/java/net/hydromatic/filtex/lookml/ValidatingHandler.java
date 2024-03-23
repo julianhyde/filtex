@@ -32,22 +32,23 @@ import static java.util.Objects.requireNonNull;
 /** Handler that validates a document against a schema.
  *
  * <p>The document is represented by a stream of LookML parse events sent
- * as calls to the {@link ObjectHandler} interface. After validation, the
+ * as calls to the {@link PropertyHandler} interface. After validation, the
  * events are sent to a consuming {@code ObjectHandler}.
  *
  * <p>The schema is represented as a {@link LookmlSchema}. */
-abstract class ValidatingHandler extends FilterHandler {
+abstract class ValidatingHandler implements ObjectHandler {
+  protected final PropertyHandler consumer;
   protected final Map<String, LookmlSchema.Property> propertyMap;
 
-  ValidatingHandler(ObjectHandler consumer,
+  ValidatingHandler(PropertyHandler consumer,
       Map<String, LookmlSchema.Property> propertyMap) {
-    super(consumer);
+    this.consumer = consumer;
     this.propertyMap = propertyMap;
   }
 
   /** Creates a validating handler. */
   static ObjectHandler create(LookmlSchema schema,
-      ObjectHandler consumer, ErrorHandler errorHandler) {
+      PropertyHandler consumer, ErrorHandler errorHandler) {
     return new RootValidatingHandler(consumer, schema, errorHandler);
   }
 
@@ -64,6 +65,14 @@ abstract class ValidatingHandler extends FilterHandler {
     return property.type() == type
         || property.type() == LookmlSchema.Type.ENUM
         && type == LookmlSchema.Type.REF;
+  }
+
+  @Override public void close() {
+    consumer.close();
+  }
+
+  @Override public ObjectHandler comment(String comment) {
+    return this; // ignore comment
   }
 
   /** Handler for validating an object that is not at the root of the
@@ -83,13 +92,14 @@ abstract class ValidatingHandler extends FilterHandler {
      * the root handler, and truncate it each time we leave an object. */
     final Set<String> names = new TreeSet<>();
 
-    NonRootValidatingHandler(ObjectHandler objectHandler,
+    NonRootValidatingHandler(PropertyHandler consumer,
         RootValidatingHandler root, String parentTypeName,
         SortedMap<String, LookmlSchema.Property> propertyMap) {
-      super(objectHandler, propertyMap);
+      super(consumer, propertyMap);
       this.root = root;
       this.parentTypeName = parentTypeName;
     }
+
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     boolean propertyIsValid(String propertyName,
@@ -115,7 +125,8 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.duplicateProperty(propertyName);
         return this;
       }
-      return super.number(propertyName, value);
+      consumer.property(property, value);
+      return this;
     }
 
     @Override public ObjectHandler string(String propertyName, String value) {
@@ -127,7 +138,8 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.duplicateProperty(propertyName);
         return this;
       }
-      return super.string(propertyName, value);
+      consumer.property(property, value);
+      return this;
     }
 
     @Override public ObjectHandler bool(String propertyName, boolean value) {
@@ -149,7 +161,8 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.duplicateProperty(propertyName);
         return this;
       }
-      return super.bool(propertyName, value);
+      consumer.property(property, value);
+      return this;
     }
 
     @Override public ObjectHandler code(String propertyName, String value) {
@@ -161,7 +174,8 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.duplicateProperty(propertyName);
         return this;
       }
-      return super.code(propertyName, value);
+      consumer.property(property, value);
+      return this;
     }
 
     @Override public ObjectHandler identifier(String propertyName,
@@ -192,7 +206,8 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.duplicateProperty(propertyName);
         return this;
       }
-      return super.identifier(propertyName, value);
+      consumer.property(property, value);
+      return this;
     }
 
     @Override public ObjectHandler objOpen(String propertyName) {
@@ -204,10 +219,10 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.duplicateProperty(propertyName);
         return LaxHandlers.nullObjectHandler();
       }
-      final ObjectHandler objectHandler = consumer.objOpen(propertyName);
+      final PropertyHandler subConsumer = consumer.objOpen(property);
       final LookmlSchema.ObjectType objectType =
           root.schema.objectTypes().get(propertyName);
-      return new NonRootValidatingHandler(objectHandler, root, propertyName,
+      return new NonRootValidatingHandler(subConsumer, root, propertyName,
           objectType.properties());
     }
 
@@ -221,10 +236,10 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.duplicateNamedProperty(propertyName, name);
         return LaxHandlers.nullObjectHandler();
       }
-      final ObjectHandler objectHandler = consumer.objOpen(propertyName, name);
+      final PropertyHandler subConsumer = consumer.objOpen(property, name);
       final LookmlSchema.ObjectType objectType =
           root.schema.objectTypes().get(propertyName);
-      return new NonRootValidatingHandler(objectHandler, root, propertyName,
+      return new NonRootValidatingHandler(subConsumer, root, propertyName,
           objectType.properties());
     }
 
@@ -245,12 +260,12 @@ abstract class ValidatingHandler extends FilterHandler {
         root.errorHandler.duplicateProperty(propertyName);
         return LaxHandlers.nullListHandler();
       }
-      final ListHandler listHandler = consumer.listOpen(propertyName);
+      final ListHandler listHandler = consumer.listOpen(property);
       return new ValidatingListHandler(listHandler, root, property);
     }
   }
 
-  /** Implementation of {@link net.hydromatic.filtex.lookml.ValidatingHandler}
+  /** Implementation of {@link ValidatingHandler}
    * that stores the common data in a tree of handlers. */
   private static class RootValidatingHandler extends ValidatingHandler {
     private final LookmlSchema schema;
@@ -259,7 +274,7 @@ abstract class ValidatingHandler extends FilterHandler {
      * yes and no or true and false). */
     final Set<String> probableBooleanTypes;
 
-    RootValidatingHandler(ObjectHandler consumer, LookmlSchema schema,
+    RootValidatingHandler(PropertyHandler consumer, LookmlSchema schema,
         ErrorHandler errorHandler) {
       super(consumer, schema.rootProperties());
       this.schema = requireNonNull(schema, "schema");
@@ -325,17 +340,18 @@ abstract class ValidatingHandler extends FilterHandler {
         errorHandler.invalidRootProperty(propertyName);
         return LaxHandlers.nullObjectHandler();
       }
-      final ObjectHandler objectHandler = consumer.objOpen(propertyName, name);
+      final PropertyHandler subConsumer = consumer.objOpen(property, name);
       final LookmlSchema.ObjectType objectType =
           schema.objectTypes().get(propertyName);
-      return new NonRootValidatingHandler(objectHandler, this, propertyName,
+      return new NonRootValidatingHandler(subConsumer, this, propertyName,
           objectType.properties());
     }
   }
 
-  /** Implementation of {@link net.hydromatic.filtex.lookml.ListHandler}
+  /** Implementation of {@link ListHandler}
    * that validates each element of a list. */
-  private static class ValidatingListHandler extends FilterListHandler {
+  private static class ValidatingListHandler
+      extends FilterHandler.FilterListHandler {
     private final RootValidatingHandler root;
     private final LookmlSchema.Property property;
 

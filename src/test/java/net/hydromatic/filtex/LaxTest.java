@@ -16,11 +16,15 @@
  */
 package net.hydromatic.filtex;
 
+import net.hydromatic.filtex.lookml.ErrorHandler;
 import net.hydromatic.filtex.lookml.LaxHandlers;
+import net.hydromatic.filtex.lookml.LaxParser;
 import net.hydromatic.filtex.lookml.LookmlSchema;
 import net.hydromatic.filtex.lookml.LookmlSchemas;
 import net.hydromatic.filtex.lookml.ObjectHandler;
+import net.hydromatic.filtex.lookml.PropertyHandler;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matcher;
@@ -28,8 +32,11 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static net.hydromatic.filtex.ParseFixture.minus;
 
@@ -39,6 +46,7 @@ import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.hasToString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.core.Is.is;
@@ -46,6 +54,13 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the LookML event-based parser. */
 public class LaxTest {
+  /** Returns (and caches) a LookML string that contains at least one instance
+   * of every property in {@link #coreSchema()}. */
+  private static final Supplier<String> EXAMPLE_LOOKML =
+      Suppliers.memoize(() ->
+          LookmlSchemas.urlContents(
+              LaxTest.class.getResource("/lookml/core-example.lkml")));
+
   private static void generateSampleEvents(ObjectHandler h) {
     h.obj("model", "m", h1 ->
             h1.number("n", 1)
@@ -122,6 +137,7 @@ public class LaxTest {
             b.addEnumProperty("type", "measure_field_type")
                 .addCodeProperty("sql")
                 .addStringProperty("label")
+                .addRefListProperty("drill_fields")
                 .build())
         .addObjectType("view", b ->
             b.addRefProperty("from")
@@ -129,6 +145,7 @@ public class LaxTest {
                 .addCodeProperty("sql_table_name")
                 .addNamedObjectProperty("dimension")
                 .addNamedObjectProperty("measure")
+                .addRefListProperty("drill_fields")
                 .build())
         .addObjectType("join", b ->
             b.addRefProperty("from")
@@ -554,9 +571,11 @@ public class LaxTest {
             + "number(fiscal_month_offset, 2)]"));
   }
 
-  /** Tests that the schema-schema obtained by parsing {@code lkml-schema.lkml}
-   * is equivalent to the one created by the {@link LookmlSchemas#schemaSchema()} method.
-   * Also lets the schema-schema validate itself. */
+  /** Tests that the schema-schema obtained by parsing
+   * {@code lkml-schema.lkml} is equivalent to the one created by the
+   * {@link LookmlSchemas#schemaSchema()} method.
+   *
+   * <p>Also lets the schema-schema validate itself. */
   @Test void testCompareSchemaSchema() {
     final URL url = LaxTest.class.getResource("/lookml/lkml-schema.lkml");
     final LookmlSchema schema = LookmlSchemas.load(url, null);
@@ -580,6 +599,37 @@ public class LaxTest {
     assertThat(LookmlSchemas.equal(schema, coreSchema), is(true));
   }
 
+  /** Tests that the example document for the core schema contains at least one
+   * instance of each property.
+   *
+   * <p>TODO: Move completeness checking into LookmlSchemas. Also check that,
+   * for each enum type in the schema, there is a matching enum class. */
+  @Test void testCheckCoreExampleCompleteness() {
+    final LookmlSchema schema = coreSchema();
+    final Set<LookmlSchema.Property> propertiesSeen = new LinkedHashSet<>();
+    final PropertyHandler completenessChecker =
+        LaxHandlers.completenessChecker(schema, propertiesSeen::add);
+    final List<String> errorList = new ArrayList<>();
+    final ErrorHandler errorHandler = LaxHandlers.errorLogger(errorList::add);
+    final ObjectHandler validator =
+        LaxHandlers.validator(completenessChecker, schema, errorHandler);
+    LaxParser.parse(validator, schema.codePropertyNames(),
+        EXAMPLE_LOOKML.get());
+    validator.close();
+    assertThat(errorList, empty());
+
+    // Check that there are some properties, and we saw all of them.
+    Set<LookmlSchema.Property> allProperties = new LinkedHashSet<>();
+    schema.objectTypes().values().forEach(objectType ->
+        allProperties.addAll(objectType.properties().values()));
+    Set<LookmlSchema.Property> propertiesNotSeen =
+        new LinkedHashSet<>(allProperties);
+    propertiesNotSeen.removeAll(propertiesSeen);
+    assertThat(allProperties, not(empty()));
+    assertThat(propertiesSeen, not(empty()));
+    assertThat(propertiesNotSeen, empty());
+  }
+
   /** Builds a model. */
   @Test void testBuild() {
     final ParseFixture f0 = ParseFixture.of().withSchema(coreSchema());
@@ -590,6 +640,18 @@ public class LaxTest {
         + "    join: v2 {}"
         + "  }\n"
         + "}");
+    assertThat(f1.errorList, empty());
+    ParseFixture.Validated f2 = f1.validate();
+    assertThat(f2.list, empty());
+    assertThat(f2.model, notNullValue());
+  }
+
+  /** Builds the example model,
+   * which {@link #testCheckCoreExampleCompleteness()}
+   * has proved contains every attribute. */
+  @Test void testBuildExample() {
+    final ParseFixture f0 = ParseFixture.of().withSchema(coreSchema());
+    ParseFixture.Parsed f1 = f0.parse(EXAMPLE_LOOKML.get());
     assertThat(f1.errorList, empty());
     ParseFixture.Validated f2 = f1.validate();
     assertThat(f2.list, empty());

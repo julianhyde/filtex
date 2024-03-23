@@ -113,11 +113,10 @@ class LoggingHandler implements ObjectHandler {
    * the {@link ObjectHandler} and {@link ListHandler} interfaces. If there
    * were no methods in common, a single object could have implemented both
    * interfaces. */
-  private static class LoggingListHandler implements ListHandler {
+  static class LoggingListHandler implements ListHandler {
     private final Consumer<String> consumer;
 
     LoggingListHandler(Consumer<String> consumer) {
-      super();
       this.consumer = consumer;
     }
 

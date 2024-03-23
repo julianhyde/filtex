@@ -20,7 +20,6 @@ import net.hydromatic.filtex.ast.Ast;
 import net.hydromatic.filtex.ast.AstNode;
 import net.hydromatic.filtex.ast.Asts;
 import net.hydromatic.filtex.ast.Bound;
-import net.hydromatic.filtex.util.Enums;
 
 import com.google.common.collect.ImmutableList;
 
@@ -28,14 +27,11 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 import static net.hydromatic.filtex.ast.AstBuilder.ast;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.aMapWithSize;
-import static org.hamcrest.Matchers.hasToString;
 
 /** Tests utilities. */
 public class UtilTest {
@@ -77,17 +73,6 @@ public class UtilTest {
     // right becomes before left. It all depends on what the value of 'is' is
     assertThat(list.get(0), is(call2.right));
     assertThat(list.get(1), is(call2.left));
-  }
-
-  @Test void testEnums() {
-    Map<String, MyEnum> map = Enums.getConstants(MyEnum.class);
-    assertThat(map, aMapWithSize(2));
-    assertThat(map.keySet(), hasToString("[ABC, DE_FGH]"));
-  }
-
-  private enum MyEnum {
-    ABC,
-    DE_FGH
   }
 }
 

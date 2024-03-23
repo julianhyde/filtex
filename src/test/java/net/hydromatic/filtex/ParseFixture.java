@@ -141,7 +141,7 @@ class ParseFixture {
           AstNodes.builder(parseFixture.schema, list::put);
       final List<String> errorList = new ArrayList<>();
       final ObjectHandler validator =
-          LaxHandlers.validatorNew(astBuilder, parseFixture.schema,
+          LaxHandlers.validator(astBuilder, parseFixture.schema,
               LaxHandlers.errorLogger(errorList::add));
       LaxParser.parse(validator, parseFixture.codePropertyNames, s);
       assertThat(errorList, empty());

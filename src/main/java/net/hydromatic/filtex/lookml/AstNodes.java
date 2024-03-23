@@ -18,14 +18,15 @@ package net.hydromatic.filtex.lookml;
 
 import net.hydromatic.filtex.util.PairList;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-
-import static java.util.Objects.requireNonNull;
 
 /** One class for each type in a LookML-Lite model. */
 public class AstNodes {
@@ -96,7 +97,6 @@ public class AstNodes {
     private final Map<String, Function<String, NodeBuilder>> typeBuilders;
     private final LookmlSchema schema;
     private final BiConsumer<String, Object> consumer;
-    private final Map<String, RelationshipType> relationshipTypeMap;
 
     private RootBuilder(LookmlSchema schema,
         BiConsumer<String, Object> consumer) {
@@ -110,20 +110,8 @@ public class AstNodes {
               .put("join", JoinBuilder::new)
               .put("measure", MeasureBuilder::new)
               .put("dimension", DimensionBuilder::new)
+              .put("conditionally_filter", ConditionallyFilterBuilder::new)
               .build();
-      this.relationshipTypeMap =
-          enumConverter(RelationshipType.class, "relationship_type");
-    }
-
-    private <E extends Enum<E>> Map<String, E> enumConverter(Class<E> enumClass,
-        String enumTypeName) {
-      LookmlSchema.EnumType enumType = schema.enumTypes().get(enumTypeName);
-      requireNonNull(enumType);
-      ImmutableMap.Builder<String, E> map = ImmutableMap.builder();
-      enumType.allowedValues().forEach(value ->
-          map.put(value,
-              Enum.valueOf(enumClass, value.toUpperCase(Locale.ROOT))));
-      return map.build();
     }
 
     @Override public PropertyHandler property(LookmlSchema.Property property,
@@ -215,6 +203,7 @@ public class AstNodes {
     String sqlTableName;
     ImmutableMap.Builder<String, Dimension> dimensions = ImmutableMap.builder();
     ImmutableMap.Builder<String, Measure> measures = ImmutableMap.builder();
+    ImmutableList.Builder<String> drillFields = ImmutableList.builder();
 
     ViewBuilder(String name) {
       this.name = name;
@@ -238,6 +227,9 @@ public class AstNodes {
       case "measure":
         Measure measure = (Measure) value;
         measures.put(measure.name, measure);
+        break;
+      case "drill_fields":
+        ((List<Values.StringValue>) value).forEach(s -> drillFields.add(s.s));
         break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
@@ -273,8 +265,7 @@ public class AstNodes {
     String from;
     String viewName;
     Join join;
-    ImmutableMap.Builder<String, String> conditionallyFilter =
-        ImmutableMap.builder();
+    ConditionallyFilter conditionallyFilter;
 
     ExploreBuilder(String name) {
       this.name = name;
@@ -292,8 +283,7 @@ public class AstNodes {
         join = (Join) value;
         break;
       case "conditionally_filter":
-        PairList<String, String> pairList = (PairList<String, String>) value;
-        pairList.forEach((ref, s) -> conditionallyFilter.put(ref, s));
+        conditionallyFilter = (ConditionallyFilter) value;
         break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
@@ -301,8 +291,7 @@ public class AstNodes {
     }
 
     Explore build() {
-      return new Explore(name, from, viewName, join,
-          conditionallyFilter.build());
+      return new Explore(name, from, viewName, join, conditionallyFilter);
     }
   }
 
@@ -311,10 +300,10 @@ public class AstNodes {
     final String from;
     final String viewName;
     final Join join;
-    final ImmutableMap<String, String> conditionallyFilter;
+    final ConditionallyFilter conditionallyFilter;
 
     Explore(String name, String from, String viewName, Join join,
-        ImmutableMap<String, String> conditionallyFilter) {
+        ConditionallyFilter conditionallyFilter) {
       this.name = name;
       this.from = from;
       this.viewName = viewName;
@@ -343,7 +332,9 @@ public class AstNodes {
         sqlOn = (String) value;
         break;
       case "relationship":
-        relationship = RelationshipType.valueOf((String) value);
+        relationship =
+            RelationshipType.valueOf(
+                ((String) value).toUpperCase(Locale.ROOT));
         break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
@@ -362,14 +353,18 @@ public class AstNodes {
       this.name = name;
     }
   }
+
   /** Builds a {@link Dimension}. */
   static class DimensionBuilder extends NodeBuilder {
     private final String name;
+    DimensionType type;
     String from;
     String label;
     String sqlTableName;
-    ImmutableMap.Builder<String, Dimension> dimensions = ImmutableMap.builder();
-    ImmutableMap.Builder<String, Measure> measures = ImmutableMap.builder();
+    ImmutableList.Builder<String> drillFields = ImmutableList.builder();
+    private boolean primaryKey;
+    private String sql;
+    private ImmutableList.Builder<String> tags = ImmutableList.builder();
 
     DimensionBuilder(String name) {
       this.name = name;
@@ -377,6 +372,12 @@ public class AstNodes {
 
     void accept(String key, Object value) {
       switch (key) {
+      case "type":
+        type =
+            DimensionType.valueOf(
+                ((String) value).toUpperCase(Locale.ROOT));
+
+        break;
       case "from":
         from = (String) value;
         break;
@@ -386,13 +387,17 @@ public class AstNodes {
       case "sql_table_name":
         sqlTableName = (String) value;
         break;
-      case "dimension":
-        Dimension dimension = (Dimension) value;
-        dimensions.put(dimension.name, dimension);
+      case "drill_fields":
+        ((List<Values.StringValue>) value).forEach(s -> drillFields.add(s.s));
         break;
-      case "measure":
-        Measure measure = (Measure) value;
-        measures.put(measure.name, measure);
+      case "primary_key":
+        primaryKey = Boolean.valueOf((String) value);
+        break;
+      case "sql":
+        sql = (String) value;
+        break;
+      case "tags":
+        ((List<Values.StringValue>) value).forEach(v -> tags.add(v.s));
         break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
@@ -411,9 +416,15 @@ public class AstNodes {
       this.name = name;
     }
   }
+
   /** Builds a {@link Measure}. */
   static class MeasureBuilder extends NodeBuilder {
     private final String name;
+    private String label;
+    private final ImmutableList.Builder<String> drillFields =
+        ImmutableList.builder();
+    private MeasureType type;
+    private String sql;
 
     MeasureBuilder(String name) {
       this.name = name;
@@ -421,6 +432,21 @@ public class AstNodes {
 
     void accept(String key, Object value) {
       switch (key) {
+      case "type":
+        type =
+            MeasureType.valueOf(
+                ((String) value).toUpperCase(Locale.ROOT));
+
+        break;
+      case "label":
+        label = (String) value;
+        break;
+      case "drill_fields":
+        ((List<Values.StringValue>) value).forEach(s -> drillFields.add(s.s));
+        break;
+      case "sql":
+        sql = (String) value;
+        break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
       }
@@ -439,11 +465,51 @@ public class AstNodes {
     }
   }
 
+  /** Builds a {@link ConditionallyFilter}. */
+  static class ConditionallyFilterBuilder extends NodeBuilder {
+    final PairList<String, String> filters = PairList.of();
+    final List<String> unless = new ArrayList<>();
+
+    ConditionallyFilterBuilder(String ignore) {
+    }
+
+    void accept(String key, Object value) {
+      switch (key) {
+      case "filters":
+        ((List<Values.PairValue>) value)
+            .forEach(pair -> filters.add(pair.ref, pair.s));
+        break;
+      case "unless":
+        ((List<Values.IdentifierValue>) value).forEach(s -> unless.add(s.id));
+        break;
+      default:
+        throw new IllegalArgumentException("unknown property " + key);
+      }
+    }
+
+    ConditionallyFilter build() {
+      return new ConditionallyFilter();
+    }
+  }
+
+  public static class ConditionallyFilter {
+    public ConditionallyFilter() {
+    }
+  }
+
   enum RelationshipType {
     MANY_TO_MANY,
     MANY_TO_ONE,
     ONE_TO_ONE,
     ONE_TO_MANY
+  }
+
+  enum DimensionType {
+    STRING,
+  }
+
+  enum MeasureType {
+    SUM,
   }
 }
 

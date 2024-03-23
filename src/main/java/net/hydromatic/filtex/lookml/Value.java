@@ -19,7 +19,7 @@ package net.hydromatic.filtex.lookml;
 /**
  * Wrapper around a LookML value in a property or a list.
  */
-public abstract class Value {
+abstract class Value {
   /** Writes this value as a list element. */
   abstract void write(LookmlWriter writer);
 

@@ -19,7 +19,9 @@ package net.hydromatic.filtex.lookml;
 import net.hydromatic.filtex.util.PairList;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /** Various implementations of {@link ObjectHandler} */
@@ -34,7 +36,19 @@ public class LaxHandlers {
    * @param pretty Whether to pretty-print (with newlines and indentation) */
   public static ObjectHandler writer(StringBuilder buf, int offset,
       boolean pretty) {
-    return new RootObjectWriter(new LookmlWriter(pretty, buf, offset));
+    final LookmlWriter sink = new LookmlWriter(pretty, buf, offset);
+    return build(sink::propertyList);
+  }
+
+  /** Creates a writer.
+   *
+   * @param buf String builder to which to write the LookML
+   * @param offset Number of spaces to increase indentation each time we enter
+   *              a nested object or list
+   * @param pretty Whether to pretty-print (with newlines and indentation) */
+  public static PropertyHandler writerTyped(StringBuilder buf, int offset,
+      boolean pretty) {
+    return untype(writer(buf, offset, pretty));
   }
 
   /** Creates a handler that writes each event, as a string, to a consumer. */
@@ -42,10 +56,20 @@ public class LaxHandlers {
     return LoggingHandler.create(list);
   }
 
+  /** Creates a handler that writes each event, as a string, to a consumer. */
+  public static PropertyHandler loggerTyped(Consumer<String> list) {
+    return new LoggingPropertyHandler(list);
+  }
+
   /** Creates a handler that writes each error event, as a string,
    *  to a consumer. */
   public static ErrorHandler errorLogger(Consumer<String> list) {
     return new LoggingErrorHandler(list);
+  }
+
+  /** Creates a property handler that writes to an object handler. */
+  public static PropertyHandler untype(ObjectHandler consumer) {
+    return new UntypingHandler(consumer);
   }
 
   /** Creates a handler that writes each event, as a string, to a consumer. */
@@ -55,23 +79,25 @@ public class LaxHandlers {
 
   /** Creates a handler that validates each event against a
    * {@link LookmlSchema}. */
-  public static ObjectHandler validator(ObjectHandler consumer,
+  public static ObjectHandler validator(PropertyHandler consumer,
       LookmlSchema schema, ErrorHandler errorHandler) {
     return ValidatingHandler.create(schema, consumer, errorHandler);
   }
 
   /** Creates a handler that validates each event against a
-   * {@link LookmlSchema}. */
-  public static ObjectHandler validatorNew(PropertyHandler consumer,
+   * {@link LookmlSchema} and writes to an {@link ObjectHandler} consumer. */
+  public static ObjectHandler validator(ObjectHandler consumer,
       LookmlSchema schema, ErrorHandler errorHandler) {
-    return NewValidatingHandler.create(schema, consumer, errorHandler);
+    PropertyHandler propertyHandler = untype(consumer);
+    return ValidatingHandler.create(schema, propertyHandler, errorHandler);
   }
 
   /** Checks whether the input contains at least one instance of every
    * property. */
-//  public static ObjectHandler completenessChecker(LookmlSchema schema) {
-//    return ValidatingHandler.create(schema, consumer, errorHandler);
-//  }
+  public static PropertyHandler completenessChecker(LookmlSchema schema,
+      Consumer<LookmlSchema.Property> propertiesSeen) {
+    return new RootCompletenessChecker(schema, propertiesSeen);
+  }
 
   /** Creates a list handler that swallows all events. */
   public static ListHandler nullListHandler() {
@@ -86,21 +112,6 @@ public class LaxHandlers {
   public static ObjectHandler build(
       Consumer<PairList<String, Value>> consumer) {
     return new ObjectBuilder(consumer);
-  }
-
-  /** Creates an ObjectHandler that converts events into a document. */
-  public static ObjectHandler build2(LookmlSchema schema,
-      ScopedObjectHandler.ObjectConsumer consumer) {
-    return ScopedObjectHandler.create(schema, consumer);
-  }
-
-  /** Builder for the root element. Ordinary builders that have
-   * a parent simply write to that parent, but this builder writes to a
-   * {@link LookmlWriter}. */
-  static class RootObjectWriter extends ObjectBuilder {
-    RootObjectWriter(LookmlWriter sink) {
-      super(sink::propertyList);
-    }
   }
 
   /** Implementation of {@link ObjectHandler}
@@ -299,4 +310,121 @@ public class LaxHandlers {
       return this;
     }
   }
+
+  /** Implementation of {@link PropertyHandler}
+   * that writes to an {@link ObjectHandler}.
+   *
+   * <p>This allows you to reverse the effects of schema validation, and go
+   * from typed to untyped events. Raw values are given {@link Value} wrappers,
+   * so that they can be interpreted correctly (say as string, identifier or
+   * enum) without accompanying properties.
+   */
+  private static class UntypingHandler implements PropertyHandler {
+    private final ObjectHandler consumer;
+
+    UntypingHandler(ObjectHandler consumer) {
+      this.consumer = consumer;
+    }
+
+    @Override public PropertyHandler property(LookmlSchema.Property property,
+        Object value) {
+      switch (property.type()) {
+      case STRING:
+        consumer.string(property.name(), (String) value);
+        break;
+      case CODE:
+        consumer.code(property.name(), (String) value);
+        break;
+      case NUMBER:
+        consumer.number(property.name(), (Number) value);
+        break;
+      case ENUM:
+      case REF:
+        consumer.identifier(property.name(), (String) value);
+        break;
+      case REF_LIST:
+        final ListHandler listHandler = consumer.listOpen(property.name());
+        ((List<String>) value).forEach(listHandler::identifier);
+        break;
+      default:
+        throw new AssertionError(property.type());
+      }
+      return this;
+    }
+
+    @Override public ListHandler listOpen(LookmlSchema.Property property) {
+      return consumer.listOpen(property.name());
+    }
+
+    @Override public PropertyHandler objOpen(LookmlSchema.Property property) {
+      final ObjectHandler subConsumer = consumer.objOpen(property.name());
+      return new UntypingHandler(subConsumer);
+    }
+
+    @Override public PropertyHandler objOpen(LookmlSchema.Property property,
+        String name) {
+      final ObjectHandler subConsumer = consumer.objOpen(property.name(), name);
+      return new UntypingHandler(subConsumer);
+    }
+
+    @Override public void close() {
+      consumer.close();
+    }
+  }
+
+  /** Property handler that notes each property seen while traversing a
+   * document, and at the end outputs all properties in the schema that were
+   * never seen. */
+  private static class CompletenessChecker implements PropertyHandler {
+    final Set<LookmlSchema.Property> propertiesSeen;
+
+    private CompletenessChecker(Set<LookmlSchema.Property> propertiesSeen) {
+      this.propertiesSeen = propertiesSeen;
+    }
+
+    @Override public PropertyHandler property(LookmlSchema.Property property,
+        Object value) {
+      propertiesSeen.add(property);
+      return this;
+    }
+
+    @Override public ListHandler listOpen(LookmlSchema.Property property) {
+      propertiesSeen.add(property);
+      return nullListHandler(); // we don't care about list elements
+    }
+
+    @Override public PropertyHandler objOpen(LookmlSchema.Property property) {
+      propertiesSeen.add(property);
+      return new CompletenessChecker(propertiesSeen);
+    }
+
+    @Override public PropertyHandler objOpen(LookmlSchema.Property property,
+        String name) {
+      propertiesSeen.add(property);
+      return new CompletenessChecker(propertiesSeen);
+    }
+
+    @Override public void close() {
+      // nothing to do
+    }
+  }
+
+  /** The root of a tree of {@link CompletenessChecker}. It contains state
+   * shared with the whole tree, and outputs not-seen properties on close. */
+  private static class RootCompletenessChecker extends CompletenessChecker {
+    final LookmlSchema schema;
+    final Consumer<LookmlSchema.Property> propertiesSeenConsumer;
+
+    private RootCompletenessChecker(LookmlSchema schema,
+        Consumer<LookmlSchema.Property> propertiesSeenConsumer) {
+      super(new LinkedHashSet<>());
+      this.schema = schema;
+      this.propertiesSeenConsumer = propertiesSeenConsumer;
+    }
+
+    @Override public void close() {
+      propertiesSeen.forEach(propertiesSeenConsumer);
+    }
+  }
+
 }

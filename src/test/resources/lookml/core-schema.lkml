@@ -75,6 +75,9 @@ schema: core {
     property: label {
       type: string
     }
+    property: drill_fields {
+      type: ref_list
+    }
   }
   object_type: view {
     property: from {
@@ -91,6 +94,9 @@ schema: core {
     }
     property: measure {
       type: named_object
+    }
+    property: drill_fields {
+      type: ref_list
     }
   }
   object_type: join {

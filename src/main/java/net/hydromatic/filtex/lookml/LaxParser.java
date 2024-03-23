@@ -22,7 +22,10 @@ import net.hydromatic.filtex.lookml.parse.ParseException;
 import com.google.common.collect.ImmutableSortedSet;
 
 import java.io.StringReader;
+import java.net.URL;
 import java.util.Collection;
+
+import static net.hydromatic.filtex.lookml.LookmlSchemas.urlContents;
 
 /** LookML parser that sends a sequence of events to a consumer. */
 public class LaxParser {
@@ -39,6 +42,13 @@ public class LaxParser {
       throw new RuntimeException(e);
     }
     handler.close();
+  }
+
+  /** Parses a LookML string. */
+  public static void parse(ObjectHandler handler,
+      Collection<String> codePropertyNames, URL url) {
+    final String s = urlContents(url);
+    parse(handler, codePropertyNames, s);
   }
 }
 
