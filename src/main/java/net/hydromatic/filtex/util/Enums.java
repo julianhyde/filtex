@@ -14,15 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.hydromatic.filtex.lookml;
+package net.hydromatic.filtex.util;
 
-import java.util.List;
+import com.google.common.collect.ImmutableMap;
 
-/** Validates a LookML AST. */
-public class Validator {
-  public void validate(AstNodes.Model model,
-      List<String> errorList) {
+import java.util.Map;
+
+/** Utilities for {@link Enum} and {@code enum}. */
+public class Enums {
+  private Enums() {}
+
+  /** For a given enum class, returns a map from names to constants. */
+  public static <E extends Enum<E>> Map<String, E> getConstants(
+      Class<E> enumClass) {
+    ImmutableMap.Builder<String, E> map = ImmutableMap.builder();
+    for (E enumConstant : enumClass.getEnumConstants()) {
+      map.put(enumConstant.name(), enumConstant);
+    }
+    return map.build();
   }
 }
 
-// End Validator.java
+// End Enums.java

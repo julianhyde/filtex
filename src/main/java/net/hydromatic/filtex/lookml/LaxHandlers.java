@@ -60,6 +60,12 @@ public class LaxHandlers {
     return ValidatingHandler.create(schema, consumer, errorHandler);
   }
 
+  /** Checks whether the input contains at least one instance of every
+   * property. */
+//  public static ObjectHandler completenessChecker(LookmlSchema schema) {
+//    return ValidatingHandler.create(schema, consumer, errorHandler);
+//  }
+
   /** Creates a list handler that swallows all events. */
   public static ListHandler nullListHandler() {
     return NullListHandler.INSTANCE;
@@ -77,9 +83,8 @@ public class LaxHandlers {
 
   /** Creates an ObjectHandler that converts events into a document. */
   public static ObjectHandler build2(LookmlSchema schema,
-      ScopedObjectHandler.PolyBuilder polyBuilder,
-      Consumer<Object> consumer) {
-    return ScopedObjectHandler.create(schema, polyBuilder, consumer);
+      ScopedObjectHandler.ObjectConsumer consumer) {
+    return ScopedObjectHandler.create(schema, consumer);
   }
 
   /** Builder for the root element. Ordinary builders that have

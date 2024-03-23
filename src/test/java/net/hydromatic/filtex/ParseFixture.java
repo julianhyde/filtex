@@ -35,9 +35,9 @@ import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 
 import static java.util.Objects.requireNonNull;
-import static org.hamcrest.Matchers.empty;
 
 /**
  * Contains necessary state for testing the parser and validator.

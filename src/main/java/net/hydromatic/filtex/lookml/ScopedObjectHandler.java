@@ -19,14 +19,13 @@ package net.hydromatic.filtex.lookml;
 import net.hydromatic.filtex.util.PairList;
 
 import java.util.Map;
-import java.util.function.Consumer;
 
 abstract class ScopedObjectHandler extends LaxHandlers.ObjectBuilder {
   protected final Map<String, LookmlSchema.Property> propertyMap;
-  protected final Consumer<Object> consumer;
+  protected final ObjectConsumer consumer;
 
   private ScopedObjectHandler(Map<String, LookmlSchema.Property> propertyMap,
-      Consumer<Object> consumer) {
+      ObjectConsumer consumer) {
     super(pairList -> { });
     this.propertyMap = propertyMap;
     this.consumer = consumer;
@@ -34,20 +33,17 @@ abstract class ScopedObjectHandler extends LaxHandlers.ObjectBuilder {
 
   /** Creates a scoped handler. */
   static ScopedObjectHandler create(LookmlSchema schema,
-      PolyBuilder polyBuilder, Consumer<Object> consumer) {
-    return new RootScopedHandler(schema, polyBuilder, consumer);
+      ObjectConsumer consumer) {
+    return new RootScopedHandler(schema, consumer);
   }
 
   /** Scoped handler that is at the root of the tree. */
   static class RootScopedHandler extends ScopedObjectHandler {
     final LookmlSchema schema;
-    final PolyBuilder polyBuilder;
 
-    RootScopedHandler(LookmlSchema schema, PolyBuilder polyBuilder,
-        Consumer<Object> consumer) {
+    RootScopedHandler(LookmlSchema schema, ObjectConsumer consumer) {
       super(schema.rootProperties(), consumer);
       this.schema = schema;
-      this.polyBuilder = polyBuilder;
     }
 
     @Override public ObjectHandler objOpen(String propertyName, String name) {
@@ -55,7 +51,7 @@ abstract class ScopedObjectHandler extends LaxHandlers.ObjectBuilder {
       final LookmlSchema.ObjectType objectType =
           schema.objectTypes().get(property.typeName());
       return new NonRootScopedHandler(this, propertyName, objectType, name,
-          consumer);
+          consumer.child());
     }
 
     @Override public ObjectHandler objOpen(String propertyName) {
@@ -63,7 +59,7 @@ abstract class ScopedObjectHandler extends LaxHandlers.ObjectBuilder {
       final LookmlSchema.ObjectType objectType =
           schema.objectTypes().get(property.typeName());
       return new NonRootScopedHandler(this, propertyName, objectType, "",
-          consumer);
+          consumer.child());
     }
   }
 
@@ -75,7 +71,7 @@ abstract class ScopedObjectHandler extends LaxHandlers.ObjectBuilder {
     private final String name;
 
     NonRootScopedHandler(RootScopedHandler root, String typeName,
-        LookmlSchema.ObjectType type, String name, Consumer<Object> consumer) {
+        LookmlSchema.ObjectType type, String name, ObjectConsumer consumer) {
       super(type.properties(), consumer);
       this.root = root;
       this.typeName = typeName;
@@ -88,7 +84,7 @@ abstract class ScopedObjectHandler extends LaxHandlers.ObjectBuilder {
       final LookmlSchema.ObjectType objectType =
           root.schema.objectTypes().get(property.typeName());
       return new NonRootScopedHandler(root, propertyName, objectType, name,
-          o -> properties.add(propertyName, Values.wrapped(o)));
+          consumer.child());
     }
 
     @Override public ObjectHandler objOpen(String propertyName) {
@@ -96,20 +92,22 @@ abstract class ScopedObjectHandler extends LaxHandlers.ObjectBuilder {
       final LookmlSchema.ObjectType objectType =
           root.schema.objectTypes().get(property.typeName());
       return new NonRootScopedHandler(root, propertyName, objectType, "",
-          o -> properties.add(propertyName, Values.wrapped(o)));
+          consumer.child());
     }
 
     @Override public void close() {
-      final Object o =
-          root.polyBuilder.build(typeName, type, name, this.properties);
-      consumer.accept(o);
+      consumer.accept(typeName, type, name, this.properties);
     }
   }
 
   /** Can build an object of any type. */
-  public interface PolyBuilder {
-    Object build(String typeName, LookmlSchema.ObjectType objectType,
-        String name, PairList<String, Value> properties);
+  public interface ObjectConsumer {
+    /** Accepts an object. */
+    void accept(String typeName, LookmlSchema.ObjectType objectType,
+        String name, PairList<String, Object> properties);
+
+    /** Returns an ObjectConsumer that will write into this one. */
+    ObjectConsumer child();
   }
 }
 

@@ -16,24 +16,59 @@
  */
 package net.hydromatic.filtex.lookml;
 
-import com.google.common.collect.ImmutableMap;
-
+import com.google.common.base.Enums;
 import net.hydromatic.filtex.util.PairList;
 
+import com.google.common.collect.ImmutableMap;
+
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
+
+import static java.util.Objects.requireNonNull;
 
 /** One class for each type in a LookML-Lite model. */
 public class AstNodes {
+  private AstNodes() {}
+
   public static Builder builder(LookmlSchema schema) {
-    return new Builder(schema);
+    return new RootBuilder(schema);
   }
 
-  public static class Builder implements ScopedObjectHandler.PolyBuilder {
-    private final LookmlSchema schema;
-    private final Map<String, Function<String, NodeBuilder<?>>> typeBuilders;
+  /** Accepts events indicating completed objects and converts them into a
+   * tree of AST nodes. */
+  public static abstract class Builder
+      implements ScopedObjectHandler.ObjectConsumer {
+  }
 
-    private Builder(LookmlSchema schema) {
+  static class NonRootBuilder extends Builder {
+    private final RootBuilder root;
+    private final PairList<String, Object> properties = PairList.of();
+    private final PairList<String, Object> parentProperties;
+
+    NonRootBuilder(RootBuilder root, PairList<String, Object> parentProperties) {
+      this.root = root;
+      this.parentProperties = parentProperties;
+    }
+
+    @Override public ScopedObjectHandler.ObjectConsumer child() {
+      return new NonRootBuilder(root, properties);
+    }
+
+    @Override public void accept(String typeName,
+        LookmlSchema.ObjectType objectType, String name,
+        PairList<String, Object> properties) {
+      Object o = root.build(typeName, objectType, name, properties);
+      parentProperties.add(typeName, o);
+    }
+  }
+
+  static class RootBuilder extends Builder {
+    private final Map<String, Function<String, NodeBuilder<?>>> typeBuilders;
+    private final LookmlSchema schema;
+    private final Map<String, RelationshipType> relationshipTypeMap;
+
+    private RootBuilder(LookmlSchema schema) {
       this.schema = schema;
       this.typeBuilders =
           ImmutableMap.<String, Function<String, NodeBuilder<?>>>builder()
@@ -44,11 +79,27 @@ public class AstNodes {
               .put("measure", MeasureBuilder::new)
               .put("dimension", DimensionBuilder::new)
               .build();
+      this.relationshipTypeMap =
+          enumConverter(RelationshipType.class, "relationship_type");
     }
 
-    @Override public Object build(String typeName,
+    private <E extends Enum<E>> Map<String, E> enumConverter(Class<E> enumClass,
+        String enumTypeName) {
+      LookmlSchema.EnumType enumType = schema.enumTypes().get(enumTypeName);
+      requireNonNull(enumType);
+      ImmutableMap.Builder<String, E> map = ImmutableMap.builder();
+      enumType.allowedValues().forEach(value ->
+          map.put(value, Enum.valueOf(enumClass, value)));
+      return map.build();
+    }
+
+    @Override public ScopedObjectHandler.ObjectConsumer child() {
+      return new NonRootBuilder(this, PairList.of());
+    }
+
+    protected Object build(String typeName,
         LookmlSchema.ObjectType objectType,
-        String name, PairList<String, Value> properties) {
+        String name, PairList<String, Object> properties) {
       final Function<String, NodeBuilder<?>> function =
           typeBuilders.get(typeName);
       if (function == null) {
@@ -61,8 +112,8 @@ public class AstNodes {
   }
 
   /** Can build a node in the AST. */
-  static abstract class NodeBuilder<T> {
-    abstract void accept(String name, Value value);
+  abstract static class NodeBuilder<T> {
+    abstract void accept(String name, Object value);
     abstract T build();
   }
 
@@ -77,19 +128,18 @@ public class AstNodes {
       this.name = name;
     }
 
-    void accept(String key, Value value) {
+    void accept(String key, Object value) {
       switch (key) {
       case "explore":
-        Explore explore =
-            ((Values.WrappedValue) value).unwrap(Explore.class);
+        Explore explore = (Explore) value;
         explores.put(explore.name, explore);
         break;
       case "view":
-        View view = ((Values.WrappedValue) value).unwrap(View.class);
+        View view = (View) value;
         views.put(view.name, view);
         break;
       case "fiscal_month_offset":
-        fiscalMonthOffset = ((Values.NumberValue) value).number.intValue();
+        fiscalMonthOffset = ((Number) value).intValue();
         break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
@@ -132,25 +182,23 @@ public class AstNodes {
       this.name = name;
     }
 
-    void accept(String key, Value value) {
+    void accept(String key, Object value) {
       switch (key) {
       case "from":
-        from = ((Values.StringValue) value).s;
+        from = (String) value;
         break;
       case "label":
-        label = ((Values.StringValue) value).s;
+        label = (String) value;
         break;
       case "sql_table_name":
-        sqlTableName = ((Values.StringValue) value).s;
+        sqlTableName = (String) value;
         break;
       case "dimension":
-        Dimension dimension =
-            ((Values.WrappedValue) value).unwrap(Dimension.class);
+        Dimension dimension = (Dimension) value;
         dimensions.put(dimension.name, dimension);
         break;
       case "measure":
-        Measure measure =
-            ((Values.WrappedValue) value).unwrap(Measure.class);
+        Measure measure = (Measure) value;
         measures.put(measure.name, measure);
         break;
       default:
@@ -164,7 +212,6 @@ public class AstNodes {
     }
   }
 
-  
   public static class View {
     public final String name;
     public final String label;
@@ -195,22 +242,20 @@ public class AstNodes {
       this.name = name;
     }
 
-    void accept(String key, Value value) {
+    void accept(String key, Object value) {
       switch (key) {
       case "from":
-        from = ((Values.StringValue) value).s;
+        from = (String) value;
         break;
       case "view_name":
-        viewName = ((Values.IdentifierValue) value).id;
+        viewName = (String) value;
         break;
       case "join":
-        join = ((Values.WrappedValue) value).unwrap(Join.class);
+        join = (Join) value;
         break;
       case "conditionally_filter":
-        ((Values.ListValue) value).list.forEach(value2 -> {
-          final Values.PairValue pair = (Values.PairValue) value2;
-          conditionallyFilter.put(pair.ref, pair.s);
-        });
+        PairList<String, String> pairList = (PairList<String, String>) value;
+        pairList.forEach((ref, s) -> conditionallyFilter.put(ref, s));
         break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
@@ -245,37 +290,22 @@ public class AstNodes {
     private final String name;
     String from;
     String sqlOn;
-    String sqlTableName;
-    ImmutableMap.Builder<String, Dimension> dimensions = ImmutableMap.builder();
-    ImmutableMap.Builder<String, Measure> measures = ImmutableMap.builder();
+    RelationshipType relationship;
 
     JoinBuilder(String name) {
       this.name = name;
     }
 
-    void accept(String key, Value value) {
-      b.addRefProperty("from")
-          .addCodeProperty("sql_on")
-          .addEnumProperty("relationship", "relationship_type")
+    void accept(String key, Object value) {
       switch (key) {
       case "from":
-        from = ((Values.IdentifierValue) value).id;
+        from = (String) value;
         break;
       case "sql_on":
-        sqlOn = ((Values.StringValue) value).s;
-        break;
-      case "sql_table_name":
-        sqlTableName = ((Values.StringValue) value).s;
+        sqlOn = (String) value;
         break;
       case "relationship":
-        RelationshipType relationshipType =
-            ((Values.IdentifierValue) value).asEnum(RelationshipType.class);
-        dimensions.put(dimension.name, dimension);
-        break;
-      case "measure":
-        Measure measure =
-            ((Values.WrappedValue) value).unwrap(Measure.class);
-        measures.put(measure.name, measure);
+        relationship = RelationshipType.valueOf((String) value);
         break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
@@ -307,25 +337,23 @@ public class AstNodes {
       this.name = name;
     }
 
-    void accept(String key, Value value) {
+    void accept(String key, Object value) {
       switch (key) {
       case "from":
-        from = ((Values.StringValue) value).s;
+        from = (String) value;
         break;
       case "label":
-        label = ((Values.StringValue) value).s;
+        label = (String) value;
         break;
       case "sql_table_name":
-        sqlTableName = ((Values.StringValue) value).s;
+        sqlTableName = (String) value;
         break;
       case "dimension":
-        Dimension dimension =
-            ((Values.WrappedValue) value).unwrap(Dimension.class);
+        Dimension dimension = (Dimension) value;
         dimensions.put(dimension.name, dimension);
         break;
       case "measure":
-        Measure measure =
-            ((Values.WrappedValue) value).unwrap(Measure.class);
+        Measure measure = (Measure) value;
         measures.put(measure.name, measure);
         break;
       default:
@@ -348,37 +376,13 @@ public class AstNodes {
   /** Builds a {@link Measure}. */
   static class MeasureBuilder extends NodeBuilder<Measure> {
     private final String name;
-    String from;
-    String label;
-    String sqlTableName;
-    ImmutableMap.Builder<String, Dimension> dimensions = ImmutableMap.builder();
-    ImmutableMap.Builder<String, Measure> measures = ImmutableMap.builder();
 
     MeasureBuilder(String name) {
       this.name = name;
     }
 
-    void accept(String key, Value value) {
+    void accept(String key, Object value) {
       switch (key) {
-      case "from":
-        from = ((Values.StringValue) value).s;
-        break;
-      case "label":
-        label = ((Values.StringValue) value).s;
-        break;
-      case "sql_table_name":
-        sqlTableName = ((Values.StringValue) value).s;
-        break;
-      case "dimension":
-        Dimension dimension =
-            ((Values.WrappedValue) value).unwrap(Dimension.class);
-        dimensions.put(dimension.name, dimension);
-        break;
-      case "measure":
-        Measure measure =
-            ((Values.WrappedValue) value).unwrap(Measure.class);
-        measures.put(measure.name, measure);
-        break;
       default:
         throw new IllegalArgumentException("unknown property " + key);
       }

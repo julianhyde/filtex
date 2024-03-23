@@ -80,7 +80,8 @@ class Values {
     }
 
     public <E extends Enum<E>> E asEnum(Class<E> enumClass) {
-      return enumClass.getEnumConstants()
+      //return enumClass.getEnumConstants();
+      throw new AssertionError();
     }
   }
 
