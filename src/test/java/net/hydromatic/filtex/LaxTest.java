@@ -21,10 +21,10 @@ import net.hydromatic.filtex.lookml.LaxHandlers;
 import net.hydromatic.filtex.lookml.LaxParser;
 import net.hydromatic.filtex.lookml.LookmlSchema;
 import net.hydromatic.filtex.lookml.LookmlSchemas;
+import net.hydromatic.filtex.lookml.MiniLookml;
 import net.hydromatic.filtex.lookml.ObjectHandler;
 import net.hydromatic.filtex.lookml.PropertyHandler;
 
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matcher;
@@ -36,7 +36,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import static net.hydromatic.filtex.ParseFixture.minus;
 
@@ -54,12 +53,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the LookML event-based parser. */
 public class LaxTest {
-  /** Returns (and caches) a LookML string that contains at least one instance
-   * of every property in {@link #coreSchema()}. */
-  private static final Supplier<String> EXAMPLE_LOOKML =
-      Suppliers.memoize(() ->
-          LookmlSchemas.urlContents(
-              LaxTest.class.getResource("/lookml/core-example.lkml")));
 
   private static void generateSampleEvents(ObjectHandler h) {
     h.obj("model", "m", h1 ->
@@ -103,67 +96,6 @@ public class LaxTest {
     assertThat(minus(list123, list13), hasToString("[2]"));
     assertThat(minus(list123, list2), hasToString("[1, 3]"));
     assertThat(minus(list1232, list2), hasToString("[1, 3, 2]"));
-  }
-
-  /** Creates a schema that is a subset of standard LookML. */
-  static LookmlSchema coreSchema() {
-    return LookmlSchemas.schemaBuilder()
-        .setName("core")
-        .addEnum("boolean", "false", "true")
-        .addEnum("join_type", "left_outer", "full_outer", "inner", "cross")
-        .addEnum("relationship_type", "many_to_one", "many_to_many",
-            "one_to_many", "one_to_one")
-        .addEnum("dimension_field_type", "bin", "date", "date_time", "distance",
-            "duration", "location", "number", "string", "tier", "time",
-            "unquoted", "yesno", "zipcode")
-        .addEnum("measure_field_type", "average", "average_distinct", "count",
-            "count_distinct", "date", "list", "max", "median",
-            "median_distinct", "min", "number", "percent_of_previous",
-            "percent_of_total", "percentile", "percentile_distinct",
-            "running_total", "string", "sum", "sum_distinct", "yesno")
-        .addObjectType("conditionally_filter", b ->
-            b.addRefStringMapProperty("filters")
-                .addRefListProperty("unless")
-                .build())
-        .addObjectType("dimension", b ->
-            b.addEnumProperty("type", "dimension_field_type")
-                .addCodeProperty("sql")
-                .addStringProperty("label")
-                .addEnumProperty("primary_key", "boolean")
-                .addStringListProperty("tags")
-                .addRefListProperty("drill_fields")
-                .build())
-        .addObjectType("measure", b ->
-            b.addEnumProperty("type", "measure_field_type")
-                .addCodeProperty("sql")
-                .addStringProperty("label")
-                .addRefListProperty("drill_fields")
-                .build())
-        .addObjectType("view", b ->
-            b.addRefProperty("from")
-                .addStringProperty("label")
-                .addCodeProperty("sql_table_name")
-                .addNamedObjectProperty("dimension")
-                .addNamedObjectProperty("measure")
-                .addRefListProperty("drill_fields")
-                .build())
-        .addObjectType("join", b ->
-            b.addRefProperty("from")
-                .addCodeProperty("sql_on")
-                .addEnumProperty("relationship", "relationship_type")
-                .build())
-        .addObjectType("explore", b ->
-            b.addRefProperty("from")
-                .addRefProperty("view_name")
-                .addNamedObjectProperty("join")
-                .addObjectProperty("conditionally_filter")
-                .build())
-        .addNamedObjectProperty("model", b ->
-            b.addNamedObjectProperty("explore")
-                .addNamedObjectProperty("view")
-                .addNumberProperty("fiscal_month_offset")
-                .build())
-        .build();
   }
 
   /** Tests the LookML writer
@@ -391,17 +323,18 @@ public class LaxTest {
     }
   }
 
-  /** Tests building core LookML schema. */
+  /** Tests building the Mini-LookML schema. */
   @Test void testSchemaBuilder3() {
-    final LookmlSchema schema = coreSchema();
+    final LookmlSchema schema = MiniLookml.schema();
     assertThat(schema.objectTypes(), aMapWithSize(7));
     assertThat(schema.enumTypes(), aMapWithSize(5));
     assertThat(schema.rootProperties(), aMapWithSize(1));
   }
 
-  /** Validates a LookML document according to the core schema. */
-  @Test void testValidateCore() {
-    final LookmlSchema schema = coreSchema();
+  /** Validates some small LookML documents according to the Mini-LookML
+   * schema. */
+  @Test void testValidateMini() {
+    final LookmlSchema schema = MiniLookml.schema();
     final ParseFixture f = ParseFixture.of().withSchema(schema);
     final String s = "dimension: d {x: 1}";
     ParseFixture.Parsed f2 = f.parse(s);
@@ -436,12 +369,12 @@ public class LaxTest {
 
     ParseFixture.Parsed f5 = f.parse("model: m {\n"
         + "  view: v {\n"
+        + "    drill_fields: true\n"
         + "    dimension: d {\n"
         + "      sql: VALUES ;;\n"
         + "      type: number\n"
         + "      label: \"a label\"\n"
         + "      tags: 123\n"
-        + "      drill_fields: true\n"
         + "    }\n"
         + "    measure: m {\n"
         + "      sql: VALUES 1;;\n"
@@ -472,42 +405,43 @@ public class LaxTest {
         + "}");
     assertThat(f5.errorList,
         hasToString("["
-            + "invalidPropertyType(tags, STRING_LIST, NUMBER),"
-            + " invalidPropertyType(drill_fields, REF_LIST, REF),"
-            + " invalidPropertyType(label, STRING, NUMBER),"
-            + " invalidPropertyType(dimension, type, "
-            + "dimension_field_type, average),"
-            + " invalidPropertyType(primary_key, ENUM, STRING),"
-            + " invalidPropertyOfParent(bad_object, view),"
-            + " invalidPropertyOfParent(bad, conditionally_filter),"
-            + " invalidPropertyType(filters, REF_STRING_MAP, REF),"
-            + " invalidListElement(unless, STRING, REF_LIST),"
-            + " invalidListElement(unless, NUMBER, REF_LIST),"
-            + " invalidListElement(unless, REF_LIST, REF_LIST)"
+            + "invalidPropertyType(drill_fields, REF_LIST, REF), "
+            + "invalidPropertyType(tags, STRING_LIST, NUMBER), "
+            + "invalidPropertyType(label, STRING, NUMBER), "
+            + "invalidPropertyType(dimension, type,"
+            + " dimension_field_type, average), "
+            + "invalidPropertyType(primary_key, ENUM, STRING), "
+            + "invalidPropertyOfParent(bad_object, view), "
+            + "invalidPropertyOfParent(bad, conditionally_filter), "
+            + "invalidPropertyType(filters, REF_STRING_MAP, REF), "
+            + "invalidListElement(unless, STRING, REF_LIST), "
+            + "invalidListElement(unless, NUMBER, REF_LIST), "
+            + "invalidListElement(unless, REF_LIST, REF_LIST)"
             + "]"));
     final List<String> discardedEvents = f5.discardedEvents();
     assertThat(discardedEvents, hasSize(15));
     assertThat(discardedEvents,
-        hasToString("[number(tags, 123),"
-            + " identifier(drill_fields, true),"
-            + " number(label, 1),"
-            + " identifier(type, average),"
-            + " string(primary_key, a string),"
-            + " objOpen(bad_object),"
-            + " identifier(type, median),"
-            + " objClose(),"
-            + " identifier(bad, true),"
-            + " identifier(filters, true),"
-            + " string(a),"
-            + " number(1),"
-            + " listOpen(),"
-            + " number(2),"
-            + " listClose()]"));
+        hasToString("["
+            + "identifier(drill_fields, true), "
+            + "number(tags, 123), "
+            + "number(label, 1), "
+            + "identifier(type, average), "
+            + "string(primary_key, a string), "
+            + "objOpen(bad_object), "
+            + "identifier(type, median), "
+            + "objClose(), "
+            + "identifier(bad, true), "
+            + "identifier(filters, true), "
+            + "string(a), "
+            + "number(1), "
+            + "listOpen(), "
+            + "number(2), "
+            + "listClose()]"));
   }
 
   /** Validates a LookML document that contains duplicate elements. */
   @Test void testValidateDuplicates() {
-    final LookmlSchema schema = coreSchema();
+    final LookmlSchema schema = MiniLookml.schema();
     final ParseFixture f0 = ParseFixture.of().withSchema(schema);
 
     // Valid - no duplicates
@@ -538,12 +472,12 @@ public class LaxTest {
         + "  fiscal_month_offset: 3\n"
         + "  view: v1 {\n"
         + "    label: \"label 1\"\n"
+        + "    drill_fields: []\n"
+        + "    drill_fields: [f1]\n"
         + "    label: \"label 2\"\n"
         + "    dimension: d1{\n"
-        + "      drill_fields: []\n"
         + "      primary_key: true\n"
         + "      type: date\n"
-        + "      drill_fields: [f1]\n"
         + "      primary_key: true\n"
         + "      type: tier\n"
         + "    }\n"
@@ -554,18 +488,18 @@ public class LaxTest {
     assertThat(f.errorList, hasSize(5));
     assertThat(f.errorList,
         hasToString("["
-            + "duplicateProperty(label), "
             + "duplicateProperty(drill_fields), "
+            + "duplicateProperty(label), "
             + "duplicateProperty(primary_key), "
             + "duplicateProperty(type), "
             + "duplicateProperty(fiscal_month_offset)]"));
     assertThat(f.discardedEvents(), hasSize(7));
     assertThat(f.discardedEvents(),
         hasToString("["
-            + "string(label, label 2), "
             + "listOpen(drill_fields), "
             + "identifier(f1), "
             + "listClose(), "
+            + "string(label, label 2), "
             + "identifier(primary_key, true), "
             + "identifier(type, tier), "
             + "number(fiscal_month_offset, 2)]"));
@@ -588,24 +522,25 @@ public class LaxTest {
     assertThat(LookmlSchemas.equal(schema, schema2), is(true));
   }
 
-  /** Tests that the core schema obtained by parsing {@code core-schema.lkml}
-   * is equivalent to the one created by the {@link #coreSchema()} method. */
-  @Test void testCompareCoreSchema() {
-    final URL url = LaxTest.class.getResource("/lookml/core-schema.lkml");
+  /** Tests that the Mini-LookML schema obtained by parsing
+   * {@code mini-lookml-schema.lkml} is equivalent to the one created by the
+   * {@link MiniLookml#schema()} method. */
+  @Test void testCompareMiniSchema() {
+    final URL url = MiniLookml.getSchemaUrl();
     final LookmlSchema schema =
         LookmlSchemas.load(url, LookmlSchemas.schemaSchema());
-    final LookmlSchema coreSchema = coreSchema();
-    assertThat(LookmlSchemas.compare(schema, coreSchema), empty());
-    assertThat(LookmlSchemas.equal(schema, coreSchema), is(true));
+    final LookmlSchema miniSchema = MiniLookml.schema();
+    assertThat(LookmlSchemas.compare(schema, miniSchema), empty());
+    assertThat(LookmlSchemas.equal(schema, miniSchema), is(true));
   }
 
-  /** Tests that the example document for the core schema contains at least one
-   * instance of each property.
+  /** Tests that the example document for the Mini-LookML schema contains at
+   * least one instance of each property.
    *
    * <p>TODO: Move completeness checking into LookmlSchemas. Also check that,
    * for each enum type in the schema, there is a matching enum class. */
-  @Test void testCheckCoreExampleCompleteness() {
-    final LookmlSchema schema = coreSchema();
+  @Test void testCheckMiniExampleCompleteness() {
+    final LookmlSchema schema = MiniLookml.schema();
     final Set<LookmlSchema.Property> propertiesSeen = new LinkedHashSet<>();
     final PropertyHandler completenessChecker =
         LaxHandlers.completenessChecker(schema, propertiesSeen::add);
@@ -614,7 +549,7 @@ public class LaxTest {
     final ObjectHandler validator =
         LaxHandlers.validator(completenessChecker, schema, errorHandler);
     LaxParser.parse(validator, schema.codePropertyNames(),
-        EXAMPLE_LOOKML.get());
+        MiniLookml.exampleModel());
     validator.close();
     assertThat(errorList, empty());
 
@@ -632,7 +567,7 @@ public class LaxTest {
 
   /** Builds a model. */
   @Test void testBuild() {
-    final ParseFixture f0 = ParseFixture.of().withSchema(coreSchema());
+    final ParseFixture f0 = ParseFixture.of().withSchema(MiniLookml.schema());
     ParseFixture.Parsed f1 = f0.parse("model: m {\n"
         + "  view: v1 {}\n"
         + "  view: v2 {}\n"
@@ -647,11 +582,11 @@ public class LaxTest {
   }
 
   /** Builds the example model,
-   * which {@link #testCheckCoreExampleCompleteness()}
+   * which {@link #testCheckMiniExampleCompleteness()}
    * has proved contains every attribute. */
   @Test void testBuildExample() {
-    final ParseFixture f0 = ParseFixture.of().withSchema(coreSchema());
-    ParseFixture.Parsed f1 = f0.parse(EXAMPLE_LOOKML.get());
+    final ParseFixture f0 = ParseFixture.of().withSchema(MiniLookml.schema());
+    ParseFixture.Parsed f1 = f0.parse(MiniLookml.exampleModel());
     assertThat(f1.errorList, empty());
     ParseFixture.Validated f2 = f1.validate();
     assertThat(f2.list, empty());
@@ -660,7 +595,7 @@ public class LaxTest {
 
   /** Validates a model. */
   @Test void testValidate() {
-    final ParseFixture f0 = ParseFixture.of().withSchema(coreSchema());
+    final ParseFixture f0 = ParseFixture.of().withSchema(MiniLookml.schema());
     ParseFixture.Parsed f1 = f0.parse("model: m {\n"
         + "  view: v1 {}\n"
         + "  explore: e {\n"

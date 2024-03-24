@@ -16,14 +16,13 @@
  */
 package net.hydromatic.filtex;
 
-import net.hydromatic.filtex.lookml.AstNodes;
 import net.hydromatic.filtex.lookml.ErrorHandler;
 import net.hydromatic.filtex.lookml.LaxHandlers;
 import net.hydromatic.filtex.lookml.LaxParser;
 import net.hydromatic.filtex.lookml.LookmlSchema;
+import net.hydromatic.filtex.lookml.MiniLookml;
 import net.hydromatic.filtex.lookml.ObjectHandler;
 import net.hydromatic.filtex.lookml.PropertyHandler;
-import net.hydromatic.filtex.lookml.Validator;
 
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
@@ -127,35 +126,35 @@ class ParseFixture {
     Validated validate() {
       assertThat("can't validate without a schema", parseFixture.schema,
           notNullValue());
-      final AstNodes.Model model = build();
-      final Validator v = new Validator();
+      final MiniLookml.Model model = build();
+      final MiniLookml.Validator v = new MiniLookml.Validator();
       final List<String> list = new ArrayList<>();
       v.validate(model, list);
       return new Validated(this, model, list);
     }
 
     /** Converts the model into an AST. */
-    AstNodes.Model build() {
+    MiniLookml.Model build() {
       final Map<String, Object> list = new LinkedHashMap<>();
       final PropertyHandler astBuilder =
-          AstNodes.builder(parseFixture.schema, list::put);
+          MiniLookml.builder(parseFixture.schema, list::put);
       final List<String> errorList = new ArrayList<>();
       final ObjectHandler validator =
           LaxHandlers.validator(astBuilder, parseFixture.schema,
               LaxHandlers.errorLogger(errorList::add));
       LaxParser.parse(validator, parseFixture.codePropertyNames, s);
       assertThat(errorList, empty());
-      return (AstNodes.Model) Iterables.getOnlyElement(list.values());
+      return (MiniLookml.Model) Iterables.getOnlyElement(list.values());
     }
   }
 
   /** The result of the phase that creates an AST (model) and validates it. */
   static class Validated {
     final Parsed parsed;
-    final AstNodes.Model model;
+    final MiniLookml.Model model;
     final List<String> list;
 
-    Validated(Parsed parsed, AstNodes.Model model, List<String> list) {
+    Validated(Parsed parsed, MiniLookml.Model model, List<String> list) {
       this.parsed = parsed;
       this.model = model;
       this.list = list;

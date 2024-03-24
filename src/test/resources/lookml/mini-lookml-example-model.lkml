@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Example file for the Core LookML schema. It contains at least one instance
+# Example model for the Mini-LookML schema. It contains at least one instance
 # of each attribute.
 #
 model: m {
@@ -37,7 +37,6 @@ model: m {
     drill_fields: []
     dimension: d {
       label: "my dimension"
-      drill_fields: []
       type: string
       primary_key: true
       sql: v.d;;
@@ -45,7 +44,6 @@ model: m {
     }
     measure: m {
       label: "my dimension"
-      drill_fields: []
       type: sum
       sql: v.amount;;
     }

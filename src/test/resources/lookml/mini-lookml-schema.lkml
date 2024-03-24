@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Definition of the schema of Core LookML (also known as 'LookML-Lite').
+# Definition of the schema of Mini-LookML.
 #
 schema: core {
   enum_type: boolean {
@@ -61,9 +61,6 @@ schema: core {
     property: tags {
       type: string_list
     }
-    property: drill_fields {
-      type: ref_list
-    }
   }
   object_type: measure {
     property: type {
@@ -74,9 +71,6 @@ schema: core {
     }
     property: label {
       type: string
-    }
-    property: drill_fields {
-      type: ref_list
     }
   }
   object_type: view {
