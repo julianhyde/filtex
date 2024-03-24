@@ -207,7 +207,6 @@ public class LaxTest {
             + "listClose(), "
             + "listOpen(emptyList), "
             + "listClose(), "
-            + "objClose(), "
             + "objClose()]"));
   }
 

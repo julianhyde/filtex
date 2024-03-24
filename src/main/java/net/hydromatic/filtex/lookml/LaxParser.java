@@ -38,6 +38,7 @@ public class LaxParser {
     } catch (ParseException e) {
       throw new RuntimeException(e);
     }
+    handler.close();
   }
 }
 

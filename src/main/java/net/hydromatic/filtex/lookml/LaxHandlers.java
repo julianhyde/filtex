@@ -39,7 +39,7 @@ public class LaxHandlers {
 
   /** Creates a handler that writes each event, as a string, to a consumer. */
   public static ObjectHandler logger(Consumer<String> list) {
-    return new LoggingHandler(list);
+    return LoggingHandler.create(list);
   }
 
   /** Creates a handler that writes each error event, as a string,

@@ -21,11 +21,16 @@ import java.util.function.Consumer;
 /** Handler that converts LookML parse events into strings, and appends those
  * strings to a given consumer. */
 class LoggingHandler implements ObjectHandler {
-  private final Consumer<String> consumer;
-  private final ListHandler listHandler = new LoggingListHandler();
+  protected final Consumer<String> consumer;
+  protected final ListHandler listHandler;
 
-  LoggingHandler(Consumer<String> consumer) {
+  static ObjectHandler create(Consumer<String> consumer) {
+    return new RootLoggingHandler(consumer, new LoggingListHandler(consumer));
+  }
+
+  private LoggingHandler(Consumer<String> consumer, ListHandler listHandler) {
     this.consumer = consumer;
+    this.listHandler = listHandler;
   }
 
   @Override public ObjectHandler comment(String comment) {
@@ -77,6 +82,30 @@ class LoggingHandler implements ObjectHandler {
     consumer.accept("objClose()");
   }
 
+  /** Handler for the root of the document. Its behavior is as
+   * {@link LoggingHandler} except that {@link #close()} does not generate a
+   * message. */
+  private static class RootLoggingHandler extends LoggingHandler {
+    RootLoggingHandler(Consumer<String> consumer,
+        LoggingListHandler loggingListHandler) {
+      super(consumer, loggingListHandler);
+    }
+
+    @Override public ObjectHandler objOpen(String propertyName) {
+      consumer.accept("objOpen(" + propertyName + ")");
+      return new LoggingHandler(consumer, listHandler);
+    }
+
+    @Override public ObjectHandler objOpen(String propertyName, String name) {
+      consumer.accept("objOpen(" + propertyName + ", " + name + ")");
+      return new LoggingHandler(consumer, listHandler);
+    }
+
+    @Override public void close() {
+      // swallows the 'onClose()' message
+    }
+  }
+
   /** Implementation of {@link net.hydromatic.filtex.lookml.ListHandler}
    * that logs events, as strings, to a consumer.
    *
@@ -84,7 +113,14 @@ class LoggingHandler implements ObjectHandler {
    * the {@link ObjectHandler} and {@link ListHandler} interfaces. If there
    * were no methods in common, a single object could have implemented both
    * interfaces. */
-  private class LoggingListHandler implements ListHandler {
+  private static class LoggingListHandler implements ListHandler {
+    private final Consumer<String> consumer;
+
+    LoggingListHandler(Consumer<String> consumer) {
+      super();
+      this.consumer = consumer;
+    }
+
     @Override public ListHandler string(String value) {
       consumer.accept("string(" + value + ")");
       return this;
