@@ -16,14 +16,12 @@
  */
 package net.hydromatic.filtex;
 
-import net.hydromatic.filtex.lookml.ErrorHandler;
 import net.hydromatic.filtex.lookml.LaxHandlers;
 import net.hydromatic.filtex.lookml.LaxParser;
 import net.hydromatic.filtex.lookml.LookmlSchema;
 import net.hydromatic.filtex.lookml.LookmlSchemas;
 import net.hydromatic.filtex.lookml.MiniLookml;
 import net.hydromatic.filtex.lookml.ObjectHandler;
-import net.hydromatic.filtex.lookml.PropertyHandler;
 
 import com.google.common.collect.ImmutableList;
 
@@ -32,9 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import static net.hydromatic.filtex.ParseFixture.minus;
@@ -45,7 +41,6 @@ import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.hasToString;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.core.Is.is;
@@ -535,34 +530,16 @@ public class LaxTest {
   }
 
   /** Tests that the example document for the Mini-LookML schema contains at
-   * least one instance of each property.
-   *
-   * <p>TODO: Move completeness checking into LookmlSchemas. Also check that,
-   * for each enum type in the schema, there is a matching enum class. */
+   * least one instance of each property. */
   @Test void testCheckMiniExampleCompleteness() {
     final LookmlSchema schema = MiniLookml.schema();
-    final Set<LookmlSchema.Property> propertiesSeen = new LinkedHashSet<>();
-    final PropertyHandler completenessChecker =
-        LaxHandlers.completenessChecker(schema, propertiesSeen::add);
+    final String model = MiniLookml.exampleModel();
     final List<String> errorList = new ArrayList<>();
-    final ErrorHandler errorHandler = LaxHandlers.errorLogger(errorList::add);
-    final ObjectHandler validator =
-        LaxHandlers.validator(completenessChecker, schema, errorHandler);
-    LaxParser.parse(validator, schema.codePropertyNames(),
-        MiniLookml.exampleModel());
-    validator.close();
+    LookmlSchemas.checkCompleteness(schema,
+        objectHandler ->
+            LaxParser.parse(objectHandler, schema.codePropertyNames(), model),
+        errorList);
     assertThat(errorList, empty());
-
-    // Check that there are some properties, and we saw all of them.
-    Set<LookmlSchema.Property> allProperties = new LinkedHashSet<>();
-    schema.objectTypes().values().forEach(objectType ->
-        allProperties.addAll(objectType.properties().values()));
-    Set<LookmlSchema.Property> propertiesNotSeen =
-        new LinkedHashSet<>(allProperties);
-    propertiesNotSeen.removeAll(propertiesSeen);
-    assertThat(allProperties, not(empty()));
-    assertThat(propertiesSeen, not(empty()));
-    assertThat(propertiesNotSeen, empty());
   }
 
   /** Builds a model. */

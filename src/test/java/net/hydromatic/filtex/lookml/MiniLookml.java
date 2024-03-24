@@ -28,6 +28,8 @@ import java.net.URL;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -62,17 +64,28 @@ public class MiniLookml {
   private static final Supplier<LookmlSchema> SCHEMA_SUPPLIER =
       Suppliers.memoize(MiniLookml::schema_);
 
-  /** Factory method for each object type. */
-  private static final Map<String, Function<String, NodeBuilder>> FACTORIES =
-      ImmutableMap.<String, Function<String, NodeBuilder>>builder()
-          .put("model", ModelBuilder::new)
-          .put("explore", ExploreBuilder::new)
-          .put("view", ViewBuilder::new)
-          .put("join", JoinBuilder::new)
-          .put("measure", MeasureBuilder::new)
-          .put("dimension", DimensionBuilder::new)
-          .put("conditionally_filter", name -> new ConditionallyFilterBuilder())
-          .build();
+  /** Caches the template, which provides a factory method for each object
+   * type. */
+  private static final Supplier<Template> TEMPLATE_SUPPLIER =
+      Suppliers.memoize(() ->
+          Template.create(schema(),
+              ImmutableMap.<String, Function<String, NodeBuilder>>builder()
+                  .put("model", ModelBuilder::new)
+                  .put("explore", ExploreBuilder::new)
+                  .put("view", ViewBuilder::new)
+                  .put("join", JoinBuilder::new)
+                  .put("measure", MeasureBuilder::new)
+                  .put("dimension", DimensionBuilder::new)
+                  .put("conditionally_filter",
+                      name -> new ConditionallyFilterBuilder())
+                  .build(),
+              ImmutableMap.<String, Class<? extends Enum<?>>>builder()
+                  .put("boolean", YesNo.class)
+                  .put("join_type", JoinType.class)
+                  .put("relationship_type", RelationshipType.class)
+                  .put("dimension_field_type", DimensionType.class)
+                  .put("measure_field_type", MeasureType.class)
+                  .build()));
 
   /** Returns the LookML source text of an example model. */
   public static String exampleModel() {
@@ -156,13 +169,63 @@ public class MiniLookml {
    * can receive a stream of document events. */
   public static PropertyHandler builder(LookmlSchema ignore,
       BiConsumer<String, Object> consumer) {
-    return new RootBuilder(consumer, FACTORIES);
+    return new RootBuilder(consumer, TEMPLATE_SUPPLIER.get());
   }
 
   /** Validates a Mini-LookML AST. */
   public static class Validator {
     public void validate(Model model,
         List<String> errorList) {
+    }
+  }
+
+  /** Template contains factories for building ASTs for a particular schema.
+   *
+   * <p>For each object type there is a factory, and for each enum type there
+   * is a Java enum class. */
+  private static class Template {
+    final LookmlSchema schema;
+    final Map<String, Function<String, NodeBuilder>> typeFactories;
+    final Map<String, Class<? extends Enum<?>>> enumClasses;
+
+    private Template(LookmlSchema schema,
+        Map<String, Function<String, NodeBuilder>> typeFactories,
+        Map<String, Class<? extends Enum<?>>> enumClasses) {
+      this.schema = schema;
+      this.typeFactories = ImmutableMap.copyOf(typeFactories);
+      this.enumClasses = ImmutableMap.copyOf(enumClasses);
+    }
+
+    static Template create(LookmlSchema schema,
+        Map<String, Function<String, NodeBuilder>> typeFactories,
+        Map<String, Class<? extends Enum<?>>> enumClasses) {
+      schema.objectTypes().forEach((name, type) -> {
+        final Function<String, NodeBuilder> factory =
+            typeFactories.get(name);
+        if (factory == null) {
+          throw new IllegalArgumentException("no factory for object type "
+              + name);
+        }
+      });
+      schema.enumTypes().forEach((name, type) -> {
+        Class<? extends Enum<?>> enumClass = enumClasses.get(name);
+        if (enumClass == null) {
+          throw new IllegalArgumentException("no class for enum type "
+              + name);
+        }
+        final SortedSet<String> enumConstantNames = new TreeSet<>();
+        type.allowedValues().forEach(allowedValue ->
+            enumConstantNames.add(allowedValue.toUpperCase(Locale.ROOT)));
+        for (Enum<?> enumConstant : enumClass.getEnumConstants()) {
+          enumConstantNames.remove(enumConstant.name());
+        }
+        if (!enumConstantNames.isEmpty()) {
+          throw new IllegalArgumentException("enum class " + enumClass
+              + " (for enum type " + name
+              + ") is missing the following constants: " + enumConstantNames);
+        }
+      });
+      return new Template(schema, typeFactories, enumClasses);
     }
   }
 
@@ -173,7 +236,7 @@ public class MiniLookml {
         PropertyHandler parentPropertyHandler,
         LookmlSchema.Property property, String name) {
       final Function<String, NodeBuilder> factory =
-          root.factories.get(property.name());
+          root.template.typeFactories.get(property.name());
       if (factory == null) {
         throw new IllegalArgumentException("unknown type " + property.name());
       }
@@ -227,13 +290,13 @@ public class MiniLookml {
   /** Extension to {@link Builder} that contains state shared throughout the
    * tree. */
   private static class RootBuilder extends Builder {
-    private final Map<String, Function<String, NodeBuilder>> factories;
+    private final Template template;
     private final BiConsumer<String, Object> consumer;
 
     private RootBuilder(BiConsumer<String, Object> consumer,
-        Map<String, Function<String, NodeBuilder>> factories) {
+        Template template) {
       this.consumer = consumer;
-      this.factories = factories;
+      this.template = template;
     }
 
     @Override public PropertyHandler property(LookmlSchema.Property property,
@@ -668,20 +731,31 @@ public class MiniLookml {
 
   /** Enum corresponding to Mini-LookML's "relationship_type" enum type. */
   public enum RelationshipType {
-    MANY_TO_MANY,
-    MANY_TO_ONE,
-    ONE_TO_ONE,
-    ONE_TO_MANY
+    MANY_TO_MANY, MANY_TO_ONE, ONE_TO_MANY, ONE_TO_ONE
   }
 
-  /** Enum corresponding to Mini-LookML's "dimension_type" enum type. */
+  /** Enum corresponding to Mini-LookML's "dimension_field_type" enum type. */
   public enum DimensionType {
-    STRING,
+    BIN, DATE, DATE_TIME, DISTANCE, DURATION, LOCATION, NUMBER, STRING, TIER,
+    TIME, UNQUOTED, YESNO, ZIPCODE
   }
 
-  /** Enum corresponding to Mini-LookML's "measure_type" enum type. */
+  /** Enum corresponding to Mini-LookML's "measure_field_type" enum type. */
   public enum MeasureType {
-    SUM,
+    AVERAGE, AVERAGE_DISTINCT, COUNT, COUNT_DISTINCT, DATE, LIST, MAX,
+    MEDIAN, MEDIAN_DISTINCT, MIN, NUMBER, PERCENTILE, PERCENTILE_DISTINCT,
+    PERCENT_OF_PREVIOUS, PERCENT_OF_TOTAL, RUNNING_TOTAL, STRING,
+    SUM, SUM_DISTINCT, YESNO
+  }
+
+  /** Enum corresponding to Mini-LookML's "boolean" enum type. */
+  public enum YesNo {
+    FALSE, TRUE
+  }
+
+  /** Enum corresponding to Mini-LookML's "join_type" enum type. */
+  public enum JoinType {
+    CROSS, FULL_OUTER, INNER, LEFT_OUTER
   }
 }
 
